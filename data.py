@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torchvision.datasets import CIFAR10
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader, RandomSampler
 
 class ImageClassificationDataset(Dataset):
 
@@ -54,3 +54,17 @@ def load_cifar10(root="data/"):
     x_train, x_test = preprocess(x_train, x_test)
 
     return x_train, y_train, x_test, y_test
+
+def get_cifar10_loaders(batch_size, root="data/"):
+    x_train, y_train, x_test, y_test = load_cifar10()
+    train_dataset = ImageClassificationDataset(x_train, y_train)
+    train_dataloader = DataLoader(
+        train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
+    )
+    print("{:>5,} training samples.".format(len(train_dataset)))
+    test_dataset = ImageClassificationDataset(x_test, y_test)
+    test_dataloader = DataLoader(
+        test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
+    )
+    print("{:>5,} test samples.".format(len(test_dataset)))
+    return train_dataloader, test_dataloader

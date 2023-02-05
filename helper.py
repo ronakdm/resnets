@@ -1,92 +1,123 @@
 import numpy as np
 import torch
-import torch.nn as nn
 import random
 import time
 import datetime
+import logging
+import sys
+import os
+import pandas as pd
+
+TRAIN = "train"
+VAL = "validation"
 
 def format_time(elapsed):
     elapsed_rounded = int(round((elapsed)))
     return str(datetime.timedelta(seconds=elapsed_rounded))
 
-def flat_accuracy(logits, labels):
-    pred_flat = np.argmax(logits, axis=1).flatten()
-    labels_flat = labels.flatten()
-    return np.sum(pred_flat == labels_flat) / len(labels_flat)
+def get_save_dirs(experiment_name, model_name, experiment_id, logs_dir, output_dir):
+    save_dirs = []
+    for directory in [logs_dir, output_dir]:
+        exp_path = os.path.join(directory, experiment_name)
+        if not os.path.exists(exp_path):
+            os.mkdir(exp_path)
+        save_dir = os.path.join(exp_path, model_name + "_" + experiment_id)
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        save_dirs.append(save_dir)
+    return save_dirs[0], save_dirs[1]
 
 class ExperimentHelper:
-    def __init__(self, n_epochs, seed=123):
+    def __init__(
+        self, 
+        n_epochs, 
+        n_train_batches, 
+        n_validation_batches, 
+        metrics, 
+        experiment_name,
+        model_name,
+        experiment_id,
+        logs_dir,
+        output_dir,
+        seed=123
+    ):
         self.n_epochs = n_epochs
+        self.n_batches = {
+            TRAIN: n_train_batches,
+            VAL: n_validation_batches
+        }
         self.seed = seed
-        self.training_stats = []
-        self.loss_func = nn.CrossEntropyLoss()
+        self.metrics = metrics
+        self.log_save_dir, self.output_save_dir = get_save_dirs(experiment_name, model_name, experiment_id, logs_dir, output_dir)
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            handlers=[
+                logging.FileHandler(os.path.join(self.log_save_dir, "output.log")),
+                logging.StreamHandler(sys.stdout)
+        ]
+)
 
-    def start_experiment(self):
+    def start_experiment(self, model):
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed_all(self.seed)
 
+        with open(os.path.join(self.log_save_dir, "model.txt"), 'w') as f:
+            print(model, file=f)
+
+        self.epoch_stats = []
+        self.stats = {}
         self.total_t0 = time.time()
 
-    def start_train_epoch(self, epoch):
+        logging.info(f"============================================")
+
+    def start_epoch(self, epoch, mode):
+        self.mode = mode
         print()
-        print(f"======== Epoch {epoch + 1} / {self.n_epochs} ========")
-        print("Training...")
+        if self.mode == TRAIN:
+            logging.info(f"======== Epoch {epoch + 1} / {self.n_epochs} ========")
+            logging.info("Training...")
+            self.stats["epoch"] = epoch + 1
+        elif self.mode == VAL:
+            logging.info("Running validation...")
         self.t0 = time.time()
         self.total_train_loss = 0
-        self.train_batches = 0
+        for metric in self.metrics:
+            self.stats[mode + "_" + metric] = 0
 
-    def start_train_step(self, it):
-        if it % 40 == 0 and not it == 0:
-            elapsed = format_time(time.time() - self.t0)
-            print(
-                f"  Batch {it:>5,}  of  {self.n_batches:>5,}.    Elapsed: {elapsed}."
-            )
+    def start_step(self, it):
+        if self.mode == TRAIN:
+            if it % 40 == 0 and not it == 0:
+                elapsed = format_time(time.time() - self.t0)
+                logging.info(
+                    f"  batch {it:>5,} / {self.n_batches[TRAIN]:>5,}.    elapsed: {elapsed}."
+                )
 
-    def end_train_step(self, loss):
-        self.total_train_loss += loss.item()
-        self.train_batches += 1
+    def end_step(self, eval_output):
+        for metric in self.metrics:
+            self.stats[self.mode + '_' + metric] += eval_output[metric]
 
-    def end_train_epoch(self):
-        avg_train_loss = self.total_train_loss / self.train_batches
-        training_time = format_time(time.time() - self.t0)
-
+    def end_epoch(self, epoch, model=None):
+        for metric in self.metrics:
+            logging.info(f"  {self.mode} {metric}: {self.stats[self.mode + '_' + metric] / self.n_batches[self.mode]:.3f}")
+            self.stats[self.mode + '_' + metric] /= self.n_batches[self.mode]
+        if self.mode == VAL:
+            self.epoch_stats.append(self.stats.copy())
+            if model:
+                torch.save(model.state_dict(), os.path.join(self.output_save_dir, f"model_epoch_{epoch}.pt"))
+        elapsed = format_time(time.time() - self.t0)
         print()
-        print(f"  Average training loss: {avg_train_loss:.2f}")
-        print(f"  Training epcoh took: {training_time}")
-
-    def start_validation_epoch(self):
-        print()
-        print("Running Validation...")
-        self.t0 = time.time()
-        self.total_eval_accuracy = 0
-        self.total_eval_loss = 0
-        self.validation_batches = 0
-
-    def start_validation_step(self):
-        pass
-
-    def end_validation_step(self, logits, labels):
-        logits = logits.cpu().numpy()
-        labels = labels.cpu().numpy()
-        self.total_eval_loss += self.loss_func(logits, labels).item()
-        self.total_eval_accuracy += flat_accuracy(logits, labels)
-        self.validation_batches += 1
-
-    def end_validation_epoch(self):
-        avg_val_accuracy = self.total_eval_accuracy / self.validation_batches
-        print(f"  Accuracy: {avg_val_accuracy:.2f}")
-        avg_val_loss = self.total_eval_loss / self.validation_batches
-        validation_time = format_time(time.time() - self.t0)
-        print(f"  Validation Loss: {avg_val_loss:.2f}")
-        print(f"  Validation took: {validation_time:}")
+        logging.info(f"  {self.mode} epoch {epoch + 1} took: {elapsed}")
 
     def end_experiment(self):
         print()
-        print("Training complete!")
-        print(
-            f"Total training took {format_time(time.time() - self.total_t0)} (h:mm:ss)"
+        logging.info(
+            f"Training complete! Total time: {format_time(time.time() - self.total_t0)}"
         )
+        df = pd.DataFrame(self.epoch_stats)
+        with open(os.path.join(self.log_save_dir, "epoch_stats.csv"), 'w') as f:
+            df.to_csv(f, index=False)
 
 
