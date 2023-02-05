@@ -1,0 +1,56 @@
+import numpy as np
+import torch
+from torchvision.datasets import CIFAR10
+from torch.utils.data import Dataset
+
+class ImageClassificationDataset(Dataset):
+
+    def __init__(self, x, y):
+        self.x = torch.tensor(x).float()
+        self.y = torch.tensor(y).long()
+        self.sample_size = len(self.x)
+
+    def __len__(self):
+        return self.sample_size
+
+    def __getitem__(self, i):
+        return self.x[i], self.y[i]
+
+def preprocess(x_tr, x_te):
+
+    # Pad
+    border = 4
+    x_tr = np.pad(
+        x_tr, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
+    )
+    x_te = np.pad(
+        x_te, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
+    )
+
+    # Normalize.
+    mean, std = x_tr.mean(axis=0), x_tr.std(axis=0)
+    x_tr = (x_tr - mean) / std
+    x_te = (x_te - mean) / std
+
+    # Transpose to put channels before heigh and width.
+    x_tr = x_tr.transpose(0, 3, 1, 2)
+    x_te = x_te.transpose(0, 3, 1, 2)
+
+    return x_tr, x_te
+
+
+def load_cifar10(root="data/"):
+
+    # Get train data.
+    train_data = CIFAR10(root, download=True)
+    test_data = CIFAR10(root, train=False, download=True)
+
+    x_train = train_data.data
+    x_test = test_data.data
+    y_train = np.array(train_data.targets)
+    y_test = np.array(test_data.targets)
+
+    # Apply preprocessing.
+    x_train, x_test = preprocess(x_train, x_test)
+
+    return x_train, y_train, x_test, y_test
