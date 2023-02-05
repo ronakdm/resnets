@@ -7,6 +7,7 @@ import logging
 import sys
 import os
 import pandas as pd
+import json
 
 TRAIN = "train"
 VAL = "validation"
@@ -15,13 +16,18 @@ def format_time(elapsed):
     elapsed_rounded = int(round((elapsed)))
     return str(datetime.timedelta(seconds=elapsed_rounded))
 
-def get_save_dirs(experiment_name, model_name, experiment_id, logs_dir, output_dir):
+def get_save_dirs(config):
+    experiment_name = config['experiment_name']
+    model_name = config['model_name']
+    model_id = config['model_id']
+    logs_dir = config['logs_dir']
+    output_dir = config['output_dir']
     save_dirs = []
     for directory in [logs_dir, output_dir]:
         exp_path = os.path.join(directory, experiment_name)
         if not os.path.exists(exp_path):
             os.mkdir(exp_path)
-        save_dir = os.path.join(exp_path, model_name + "_" + experiment_id)
+        save_dir = os.path.join(exp_path, model_name + "_" + model_id)
         if not os.path.exists(save_dir):
             os.mkdir(save_dir)
         save_dirs.append(save_dir)
@@ -30,25 +36,25 @@ def get_save_dirs(experiment_name, model_name, experiment_id, logs_dir, output_d
 class ExperimentHelper:
     def __init__(
         self, 
-        n_epochs, 
+        config, 
         n_train_batches, 
         n_validation_batches, 
-        metrics, 
-        experiment_name,
-        model_name,
-        experiment_id,
-        logs_dir,
-        output_dir,
         seed=123
     ):
-        self.n_epochs = n_epochs
+        # Record experiment parameters and metrics.
+        self.n_epochs = config['n_epochs']
         self.n_batches = {
             TRAIN: n_train_batches,
             VAL: n_validation_batches
         }
         self.seed = seed
-        self.metrics = metrics
-        self.log_save_dir, self.output_save_dir = get_save_dirs(experiment_name, model_name, experiment_id, logs_dir, output_dir)
+        self.metrics = config['metrics']
+
+        # Create logger and logging/output directories.
+        self.log_save_dir, self.output_save_dir = get_save_dirs(config)
+        with open(os.path.join(self.log_save_dir, "config.json"), "w") as outfile:
+            json.dump(config, outfile, indent=4)
+
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(asctime)s [%(levelname)s] %(message)s",
@@ -59,18 +65,19 @@ class ExperimentHelper:
 )
 
     def start_experiment(self, model):
+        # Seed everything.
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed_all(self.seed)
 
+        # Save a snapshot of the network architecture.
         with open(os.path.join(self.log_save_dir, "model.txt"), 'w') as f:
             print(model, file=f)
 
         self.epoch_stats = []
         self.stats = {}
         self.total_t0 = time.time()
-
         logging.info(f"============================================")
 
     def start_epoch(self, epoch, mode):
@@ -100,13 +107,17 @@ class ExperimentHelper:
             self.stats[self.mode + '_' + metric] += eval_output[metric]
 
     def end_epoch(self, epoch, model=None):
+        # Compute average of metrics over epoch.
         for metric in self.metrics:
             logging.info(f"  {self.mode} {metric}: {self.stats[self.mode + '_' + metric] / self.n_batches[self.mode]:.3f}")
             self.stats[self.mode + '_' + metric] /= self.n_batches[self.mode]
+
+        # Copy metrics and save model parameters if supplied.
         if self.mode == VAL:
             self.epoch_stats.append(self.stats.copy())
             if model:
                 torch.save(model.state_dict(), os.path.join(self.output_save_dir, f"model_epoch_{epoch}.pt"))
+
         elapsed = format_time(time.time() - self.t0)
         print()
         logging.info(f"  {self.mode} epoch {epoch + 1} took: {elapsed}")
@@ -116,6 +127,8 @@ class ExperimentHelper:
         logging.info(
             f"Training complete! Total time: {format_time(time.time() - self.total_t0)}"
         )
+
+        # Save epoch metrics in readable format.
         df = pd.DataFrame(self.epoch_stats)
         with open(os.path.join(self.log_save_dir, "epoch_stats.csv"), 'w') as f:
             df.to_csv(f, index=False)

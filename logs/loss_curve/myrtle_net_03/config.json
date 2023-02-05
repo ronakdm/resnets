@@ -1,0 +1,17 @@
+{
+    "model_id": "03",
+    "n_layers": 2,
+    "residual_blocks": [],
+    "n_epochs": 24,
+    "device": "cuda:2",
+    "model_name": "myrtle_net",
+    "experiment_name": "loss_curve",
+    "logs_dir": "logs/",
+    "output_dir": "/mnt/hdd/ronak/cifar10_resnets",
+    "batch_size": 512,
+    "lr": 0.0003,
+    "metrics": [
+        "loss",
+        "accuracy"
+    ]
+}
