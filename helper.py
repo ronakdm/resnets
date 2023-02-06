@@ -39,6 +39,7 @@ class ExperimentHelper:
         config, 
         n_train_batches, 
         n_validation_batches, 
+        verbose=True,
         seed=123
     ):
         # Record experiment parameters and metrics.
@@ -49,22 +50,23 @@ class ExperimentHelper:
         }
         self.seed = seed
         self.metrics = config['metrics']
+        self.verbose = verbose
 
         # Create logger and logging/output directories.
-        self.log_save_dir, self.output_save_dir = get_save_dirs(config)
-        with open(os.path.join(self.log_save_dir, "config.json"), "w") as outfile:
-            json.dump(config, outfile, indent=4)
-
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            handlers=[
-                logging.FileHandler(os.path.join(self.log_save_dir, "output.log")),
-                logging.StreamHandler(sys.stdout)
-        ]
+        if self.verbose:
+            self.log_save_dir, self.output_save_dir = get_save_dirs(config)
+            with open(os.path.join(self.log_save_dir, "config.json"), "w") as outfile:
+                json.dump(config, outfile, indent=4)
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format="%(asctime)s [%(levelname)s] %(message)s",
+                handlers=[
+                    logging.FileHandler(os.path.join(self.log_save_dir, "output.log")),
+                    logging.StreamHandler(sys.stdout)
+            ]
 )
 
-    def start_experiment(self, model):
+    def start_experiment(self, model=None):
         # Seed everything.
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -72,22 +74,25 @@ class ExperimentHelper:
         torch.cuda.manual_seed_all(self.seed)
 
         # Save a snapshot of the network architecture.
-        with open(os.path.join(self.log_save_dir, "model.txt"), 'w') as f:
-            print(model, file=f)
+        if model:
+            with open(os.path.join(self.log_save_dir, "model.txt"), 'w') as f:
+                print(model, file=f)
 
         self.epoch_stats = []
         self.stats = {}
         self.total_t0 = time.time()
-        logging.info(f"============================================")
+        if self.verbose:
+            logging.info(f"============================================")
 
     def start_epoch(self, epoch, mode):
         self.mode = mode
         print()
         if self.mode == TRAIN:
-            logging.info(f"======== Epoch {epoch + 1} / {self.n_epochs} ========")
-            logging.info("Training...")
+            if self.verbose:
+                logging.info(f"======== Epoch {epoch + 1} / {self.n_epochs} ========")
+                logging.info("Training...")
             self.stats["epoch"] = epoch + 1
-        elif self.mode == VAL:
+        elif self.mode == VAL and self.verbose:
             logging.info("Running validation...")
         self.t0 = time.time()
         self.total_train_loss = 0
@@ -95,7 +100,7 @@ class ExperimentHelper:
             self.stats[mode + "_" + metric] = 0
 
     def start_step(self, it):
-        if self.mode == TRAIN:
+        if self.mode == TRAIN and self.verbose:
             if it % 40 == 0 and not it == 0:
                 elapsed = format_time(time.time() - self.t0)
                 logging.info(
@@ -119,14 +124,16 @@ class ExperimentHelper:
                 torch.save(model.state_dict(), os.path.join(self.output_save_dir, f"model_epoch_{epoch}.pt"))
 
         elapsed = format_time(time.time() - self.t0)
-        print()
-        logging.info(f"  {self.mode} epoch {epoch + 1} took: {elapsed}")
+        if self.verbose:
+            print()
+            logging.info(f"  {self.mode} epoch {epoch + 1} took: {elapsed}")
 
     def end_experiment(self):
-        print()
-        logging.info(
-            f"Training complete! Total time: {format_time(time.time() - self.total_t0)}"
-        )
+        if self.verbose:
+            print()
+            logging.info(
+                f"Training complete! Total time: {format_time(time.time() - self.total_t0)}"
+            )
 
         # Save epoch metrics in readable format.
         df = pd.DataFrame(self.epoch_stats)

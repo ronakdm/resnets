@@ -4,22 +4,10 @@ import numpy as np
 from data import get_cifar10_loaders
 from models import MyrtleNet
 from helper import ExperimentHelper, TRAIN, VAL
+from configs import configs
 
 # Set configuration.
-config = {
-    "model_id" : "05",
-    "n_layers" : 2,
-    "residual_blocks" : [1],
-    "n_epochs" : 24,
-    "device" : "cuda:0",
-    "model_name" : "myrtle_net",
-    "experiment_name" : "loss_curve",
-    "logs_dir" : "logs/",
-    "output_dir" : "/mnt/hdd/ronak/cifar10_resnets",
-    "batch_size" : 512,
-    "lr" : 3e-4,
-    "metrics" : ["loss", "accuracy"],
-}
+config = configs[0]
 
 # Load model and data.
 train_dataloader, test_dataloader = get_cifar10_loaders(config['batch_size'])
@@ -46,7 +34,7 @@ helper = ExperimentHelper(
 )
 
 # Run experiment.
-helper.start_experiment(model)
+helper.start_experiment(model=model)
 for epoch in range(config['n_epochs']):
     helper.start_epoch(epoch, TRAIN)
     for i, (x_batch, y_batch) in enumerate(train_dataloader):
