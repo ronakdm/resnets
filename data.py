@@ -19,22 +19,28 @@ class ImageClassificationDataset(Dataset):
 def preprocess(x_tr, x_te):
 
     # Pad
-    border = 4
-    x_tr = np.pad(
-        x_tr, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
-    )
-    x_te = np.pad(
-        x_te, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
-    )
+    # border = 4
+    # x_tr = np.pad(
+    #     x_tr, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
+    # )
+    # x_te = np.pad(
+    #     x_te, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
+    # )
 
     # Normalize.
     mean, std = x_tr.mean(axis=0), x_tr.std(axis=0)
     x_tr = (x_tr - mean) / std
     x_te = (x_te - mean) / std
 
-    # Transpose to put channels before heigh and width.
+    # Transpose to put channels before height and width.
     x_tr = x_tr.transpose(0, 3, 1, 2)
     x_te = x_te.transpose(0, 3, 1, 2)
+
+    # Randomly flip left and write.
+    np.random.seed(123)
+    n = len(x_tr)
+    flips = np.random.binomial(1, 0.5, size=(n))
+    x_tr = np.array([x_tr[i][..., ::-1] if flips[i] else x_tr[i] for i in range(n)])
 
     return x_tr, x_te
 

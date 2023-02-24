@@ -1,7 +1,10 @@
 {
-    "model_id": "03",
-    "n_layers": 2,
-    "residual_blocks": [],
+    "model_id": "11",
+    "n_layers": 3,
+    "residual_blocks": [
+        0,
+        1
+    ],
     "n_epochs": 24,
     "device": "cuda:2",
     "model_name": "myrtle_net",

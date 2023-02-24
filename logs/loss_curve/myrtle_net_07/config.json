@@ -7,9 +7,9 @@
     "model_name": "myrtle_net",
     "experiment_name": "loss_curve",
     "logs_dir": "logs/",
-    "output_dir": "/mnt/hdd/ronak/cifar10_resnets",
+    "output_dir": "/mnt/hdd2/ronak/cifar10_resnets",
     "batch_size": 512,
-    "lr": 0.0003,
+    "lr": 0.003,
     "metrics": [
         "loss",
         "accuracy"

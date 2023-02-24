@@ -1,9 +1,11 @@
 {
-    "model_id": "03",
-    "n_layers": 2,
-    "residual_blocks": [],
+    "model_id": "10",
+    "n_layers": 3,
+    "residual_blocks": [
+        2
+    ],
     "n_epochs": 24,
-    "device": "cuda:2",
+    "device": "cuda:1",
     "model_name": "myrtle_net",
     "experiment_name": "loss_curve",
     "logs_dir": "logs/",
