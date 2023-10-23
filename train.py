@@ -1,68 +1,37 @@
 import torch
-import numpy as np
+import argparse
 
-from data import get_cifar10_loaders
-from models import MyrtleNet
-from helper import ExperimentHelper, TRAIN, VAL
-from configs import configs
+from src.experiment import ExperimentHelper
 
-# Set configuration.
-config = configs[13]
+# TODO: ddp, gradient clipping, optimizer
 
-# Load model and data.
-train_dataloader, test_dataloader = get_cifar10_loaders(config["batch_size"])
-device = config["device"]
-model = (
-    MyrtleNet(
-        n_layers=config["n_layers"],
-        residual_blocks=config["residual_blocks"],
-    )
-    .float()
-    .to(device)
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "experiment_name",
+    type=str,
+    required=True,
+    help="name of experiment for entry in 'configs.py'",
 )
-loss_func = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
+parser.add_argument("seed", type=int, default=0, help="seed for entry in 'configs.py'")
 
-# Determine which metrics should be computed.
-def evaluate(logits, labels):
-    return {
-        "loss": loss_func(logits, labels).item(),
-        "accuracy": (
-            torch.sum(torch.argmax(logits, dim=1) == labels) / len(labels)
-        ).item(),
-    }
+args = parser.parse_args()
 
-
-# Initialize helper for logging and saving.
-helper = ExperimentHelper(
-    config,
-    len(train_dataloader),
-    len(test_dataloader),
+# Build model and optimizer.
+helper = ExperimentHelper(args.experiment_name, args.seed)
+model = helper.get_model()
+optimizer = torch.optim.AdamW(
+    model.parameters(), lr=helper.cfg["lr"], weight_decay=5e-4
 )
 
 # Run experiment.
-helper.start_experiment(model=model)
-for epoch in range(config["n_epochs"]):
-    helper.start_epoch(epoch, TRAIN)
-    for i, (x_batch, y_batch) in enumerate(train_dataloader):
-        helper.start_step(i)
-
-        model.zero_grad()
-        logits = model(x_batch.to(device))
-        loss = loss_func(logits, y_batch.to(device))
+X, Y = helper.get_batch("train")
+for iter_num in range(helper.max_iter):
+    helper.log_step(iter_num)
+    for micro_step in range(helper.grad_accumulation_steps):
+        loss, logits = model(X, Y)
+        loss = loss / helper.grad_accumulation_steps
+        X, Y = helper.get_batch("train")
         loss.backward()
-        optimizer.step()
-
-        helper.end_step(evaluate(logits, y_batch.to(device)))
-    helper.end_epoch(epoch)
-
-    helper.start_epoch(epoch, VAL)
-    with torch.no_grad():
-        for i, (x_batch, y_batch) in enumerate(test_dataloader):
-            helper.start_step(i)
-
-            logits = model(x_batch.to(device))
-
-            helper.end_step(evaluate(logits, y_batch.to(device)))
-    helper.end_epoch(epoch, model=model)
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
 helper.end_experiment()

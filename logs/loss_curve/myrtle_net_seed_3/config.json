@@ -1,11 +1,12 @@
 {
-    "model_id": "12",
+    "model_id": "seed_3",
+    "seed": 3,
     "n_layers": 3,
     "residual_blocks": [
         0,
         2
     ],
-    "n_epochs": 30,
+    "n_epochs": 24,
     "device": "cuda:3",
     "model_name": "myrtle_net",
     "experiment_name": "loss_curve",

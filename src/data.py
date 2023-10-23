@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torchvision.datasets import CIFAR10
 from torch.utils.data import Dataset, DataLoader, RandomSampler
-from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip
+from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, CenterCrop
 
 
 class Cutout:
@@ -19,11 +19,16 @@ class Cutout:
 
 
 class ImageClassificationDataset(Dataset):
-    def __init__(self, x, y):
+    def __init__(self, x, y, augment=False):
         self.x = torch.tensor(x).float()
         self.y = torch.tensor(y).long()
         self.n = len(self.x)
-        self.pipeline = Compose([RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)])
+        if augment:
+            self.pipeline = Compose(
+                [RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)]
+            )
+        else:
+            self.pipeline = CenterCrop(32)
 
     def __len__(self):
         return self.n
@@ -74,7 +79,7 @@ def load_cifar10(root="data/"):
 
 def get_cifar10_loaders(batch_size, root="data/"):
     x_train, y_train, x_test, y_test = load_cifar10()
-    train_dataset = ImageClassificationDataset(x_train, y_train)
+    train_dataset = ImageClassificationDataset(x_train, y_train, augment=True)
     train_dataloader = DataLoader(
         train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
     )
