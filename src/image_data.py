@@ -43,15 +43,14 @@ class ImageClassificationDataLoader:
 
     def get_batch(self, batch_size, device):
         ix = torch.randint(len(self.features), (batch_size,))
-        # ix = torch.arange(batch_size)
-        x = self.pipeline(self.features[ix])
+        x = self.features[ix]
         y = self.labels[ix]
         if device != "cpu":
             # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
             x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
                 device, non_blocking=True
             )
-        return x, y
+        return self.pipeline(x), y
 
 
 def preprocess(x_tr, x_te, border=4):
