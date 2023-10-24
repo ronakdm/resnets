@@ -3,12 +3,11 @@ configs = [
         # experiment
         "experiment_group": "debug",
         "experiment_name": "debug",
-        "id": 0,
+        "seed": 0,
         "log_dir": "logs/",
-        "output_dir": "/mnt/ssd/ronak/",
+        "output_dir": "/mnt/ssd/ronak/output",
         # data
         "dataset": "cifar10",
-        "data_dir": "",
         # model
         "model_cfg": {
             "architecture": "myrtle_net",
@@ -16,8 +15,9 @@ configs = [
             "residual_blocks": [0, 2],
         },
         # taining
-        "max_iter": 10,
-        "eval_iterval": 2,
+        "max_iters": 30,
+        "eval_interval": 10,
+        "eval_iters": 5,
         "batch_size": 512,
         "device": "cuda:0",
         "optim_cfg": {
@@ -25,6 +25,5 @@ configs = [
             "lr": 0.003,
         },
         "grad_accumulation_steps": 1,
-        "metrics": ["loss", "accuracy"],
     },
 ]

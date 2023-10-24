@@ -29,7 +29,12 @@ class MyrtleNet(nn.Module):
         residual_blocks=[0, 2],
         height=32,
         width=32,
+        architecture="myrtle_net",
     ):
+        if architecture != "myrtle_net":
+            raise ValueError(
+                f"Incorrect architecture specification '{architecture}' for model MyrtleNet!"
+            )
         super(MyrtleNet, self).__init__()
         self.prep = nn.Sequential(
             nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False),
@@ -66,8 +71,12 @@ class MyrtleNet(nn.Module):
             nn.MaxPool2d(2), nn.Flatten(1), nn.Linear(n_features, n_classes)
         )
 
-    def forward(self, x):
+    def forward(self, x, y=None):
         h = self.prep(x)
         for layer in self.layers:
             h = layer(h)
-        return self.classifier(h)
+        logits = self.classifier(h)
+        loss = None
+        if not (y is None):
+            loss = F.cross_entropy(logits, y)
+        return loss, logits
