@@ -15,8 +15,8 @@ configs = [
             "residual_blocks": [0, 2],
         },
         # taining
-        "max_iters": 30,
-        "eval_interval": 10,
+        "max_iters": 300,
+        "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 512,
         "device": "cuda:0",

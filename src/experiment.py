@@ -91,7 +91,7 @@ class ExperimentHelper:
         model_cfg = self.cfg["model_cfg"]
         arch = model_cfg["architecture"]
         if arch == "myrtle_net":
-            model = MyrtleNet(**model_cfg).bfloat16()
+            model = MyrtleNet(**model_cfg).float()
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 

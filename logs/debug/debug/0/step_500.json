@@ -1,0 +1,7 @@
+{
+    "iter_num": 500,
+    "train_loss": 1.0617424249649048,
+    "train_accuracy": 1.0617424249649048,
+    "validation_loss": 0.9276618957519531,
+    "validation_accuracy": 0.9276618957519531
+}
