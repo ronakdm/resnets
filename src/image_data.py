@@ -18,41 +18,41 @@ class Cutout:
         return img
 
 
-class ImageClassificationDataLoader:
-    def __init__(
-        self,
-        features,
-        labels,
-        center=None,
-        crop=32,
-        flip=0.5,
-        cutout=8,
-    ):
-        if center:
-            self.pipeline = CenterCrop(center)
-        else:
-            pipeline = []
-            for param, transform in zip(
-                [crop, flip, cutout], [RandomCrop, RandomHorizontalFlip, Cutout]
-            ):
-                if param:
-                    pipeline.append(transform(param))
-            self.pipeline = Compose(pipeline)
+# class ImageClassificationDataLoader:
+#     def __init__(
+#         self,
+#         features,
+#         labels,
+#         center=None,
+#         crop=32,
+#         flip=0.5,
+#         cutout=8,
+#     ):
+#         if center:
+#             self.pipeline = CenterCrop(center)
+#         else:
+#             pipeline = []
+#             for param, transform in zip(
+#                 [crop, flip, cutout], [RandomCrop, RandomHorizontalFlip, Cutout]
+#             ):
+#                 if param:
+#                     pipeline.append(transform(param))
+#             self.pipeline = Compose(pipeline)
 
-        self.features = torch.from_numpy(features).float()
-        self.labels = torch.from_numpy(labels).long()
+#         self.features = torch.from_numpy(features).float()
+#         self.labels = torch.from_numpy(labels).long()
 
-    def get_batch(self, batch_size, device):
-        ix = torch.randint(len(self.features), (batch_size,))
-        # ix = torch.arange(batch_size)
-        x = self.pipeline(self.features[ix])
-        y = self.labels[ix]
-        if device != "cpu":
-            # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-            x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
-                device, non_blocking=True
-            )
-        return x, y
+#     def get_batch(self, batch_size, device):
+#         ix = torch.randint(len(self.features), (batch_size,))
+#         # ix = torch.arange(batch_size)
+#         x = self.pipeline(self.features[ix])
+#         y = self.labels[ix]
+#         if device != "cpu":
+#             # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
+#             x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(
+#                 device, non_blocking=True
+#             )
+#         return x, y
 
 
 class ImageClassificationDataset(Dataset):
@@ -90,29 +90,29 @@ def preprocess(x_tr, x_te, border=4):
     return x_tr, x_te
 
 
-def compute_image_classification_metrics(model, X, Y):
-    loss, logits = model(X, Y)
-    accuracy = torch.sum((torch.argmax(logits, dim=1) == Y)) / len(Y)
-    return {"loss": loss, "accuracy": accuracy}
+# def compute_image_classification_metrics(model, X, Y):
+#     loss, logits = model(X, Y)
+#     accuracy = torch.sum((torch.argmax(logits, dim=1) == Y)) / len(Y)
+#     return {"loss": loss, "accuracy": accuracy}
 
 
-def load_cifar10(root="/mnt/ssd/ronak/datasets/"):
-    # Get train data.
-    train_data = CIFAR10(root, download=True)
-    test_data = CIFAR10(root, train=False, download=True)
+# def load_cifar10(root="/mnt/ssd/ronak/datasets/"):
+#     # Get train data.
+#     train_data = CIFAR10(root, download=True)
+#     test_data = CIFAR10(root, train=False, download=True)
 
-    x_train = train_data.data
-    x_test = test_data.data
-    y_train = np.array(train_data.targets)
-    y_test = np.array(test_data.targets)
+#     x_train = train_data.data
+#     x_test = test_data.data
+#     y_train = np.array(train_data.targets)
+#     y_test = np.array(test_data.targets)
 
-    # Apply preprocessing.
-    x_train, x_test = preprocess(x_train, x_test)
+#     # Apply preprocessing.
+#     x_train, x_test = preprocess(x_train, x_test)
 
-    train_loader = ImageClassificationDataLoader(x_train, y_train)
-    test_loader = ImageClassificationDataLoader(x_test, y_test, center=32)
+#     train_loader = ImageClassificationDataLoader(x_train, y_train)
+#     test_loader = ImageClassificationDataLoader(x_test, y_test, center=32)
 
-    return train_loader, test_loader, compute_image_classification_metrics
+#     return train_loader, test_loader, compute_image_classification_metrics
 
 
 def get_cifar10_loaders(batch_size, root="/mnt/ssd/ronak/datasets/"):

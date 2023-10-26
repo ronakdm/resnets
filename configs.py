@@ -7,6 +7,7 @@ configs = [
         "log_dir": "logs/",
         "output_dir": "/mnt/ssd/ronak/output",
         # data
+        "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
         # model
         "model_cfg": {
@@ -15,7 +16,7 @@ configs = [
             "residual_blocks": [0, 2],
         },
         # taining
-        "max_iters": 300,
+        "max_iters": 500,
         "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 512,

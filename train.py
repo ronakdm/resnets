@@ -2,7 +2,6 @@ import torch
 import argparse
 
 from src.experiment import ExperimentHelper
-from src.image_data import get_cifar10_loaders
 
 # TODO: ddp, gradient clipping, optimizer
 
@@ -28,32 +27,22 @@ optimizer = torch.optim.AdamW(
     model.parameters(), lr=helper.cfg["optim_cfg"]["lr"], weight_decay=5e-4
 )
 
-# TODO: Remove.
-train_dataloader, test_dataloader = get_cifar10_loaders(512)
+train_loader, val_loader = helper.get_dataloaders()
 device = helper.device
 
 # Run experiment.
 model.train()
-X, Y = helper.get_batch("train")
-# for iter_num in range(helper.max_iters):
-#     helper.log_step(iter_num, model)
-#     for micro_step in range(helper.grad_accumulation_steps):
-#         loss, logits = model(X, Y)
-#         loss = loss / helper.grad_accumulation_steps
-#         X, Y = helper.get_batch("train")
-#         loss.backward()
-#     optimizer.step()
-#     optimizer.zero_grad(set_to_none=True)
 iter_num = 0
-for epoch in range(10):
-    for X, Y in train_dataloader:
-        helper.log_step(iter_num, model)
-        for micro_step in range(helper.grad_accumulation_steps):
-            loss, logits = model(X.to(device), Y.to(device))
-            loss = loss / helper.grad_accumulation_steps
-            # X, Y = helper.get_batch("train")
-            loss.backward()
-        optimizer.step()
-        optimizer.zero_grad(set_to_none=True)
+while iter_num < helper.max_iters:
+    for X, Y in train_loader:
+        helper.log_step(iter_num, model, [train_loader, val_loader])
+        loss, logits = model(X.to(device), Y.to(device))
+        loss = loss / helper.grad_accumulation_steps
+        loss.backward()
+        if iter_num % helper.grad_accumulation_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
         iter_num += 1
+        if iter_num > helper.max_iters:
+            break
 helper.end_experiment()

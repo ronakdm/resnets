@@ -1,7 +1,6 @@
 {
-    "iter_num": 300,
-    "train_loss": 1.3397220373153687,
-    "train_accuracy": 1.3397220373153687,
-    "validation_loss": 1.1194918155670166,
-    "validation_accuracy": 1.1194918155670166
+    "train_accuracy": 0.556640625,
+    "train_loss": 1.2048635482788086,
+    "validation_accuracy": 0.55859375,
+    "validation_loss": 1.255924105644226
 }
