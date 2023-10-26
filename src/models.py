@@ -15,8 +15,8 @@ class ResidualBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(n_channels)
 
     def forward(self, x):
-        h = F.relu(self.bn1(self.conv1(x)))
-        h = F.relu(self.bn2(self.conv2(h)))
+        h = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        h = F.relu(self.bn2(self.conv2(h)), inplace=True)
         return x + h
 
 
@@ -39,7 +39,7 @@ class MyrtleNet(nn.Module):
         self.prep = nn.Sequential(
             nn.Conv2d(n_channels, 64, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(64),
-            nn.ReLU(),
+            nn.ReLU(True),
         )
         # Add convolutional blocks that increase channels by powers of 2.
         self.layers = nn.ModuleList()
@@ -54,7 +54,7 @@ class MyrtleNet(nn.Module):
                     bias=False,
                 ),
                 nn.BatchNorm2d(64 * 2 ** (l + 1)),
-                nn.ReLU(),
+                nn.ReLU(True),
                 nn.MaxPool2d(2),
             ]
             if l in residual_blocks:

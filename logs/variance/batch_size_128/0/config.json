@@ -1,0 +1,26 @@
+{
+    "experiment_group": "variance",
+    "experiment_name": "batch_size_128",
+    "seed": 0,
+    "log_dir": "logs/",
+    "output_dir": "/mnt/ssd/ronak/output",
+    "data_dir": "/mnt/ssd/ronak/datasets/",
+    "dataset": "cifar10",
+    "model_cfg": {
+        "architecture": "myrtle_net",
+        "n_layers": 3,
+        "residual_blocks": [
+            0,
+            2
+        ]
+    },
+    "max_iters": 3000,
+    "eval_interval": 100,
+    "eval_iters": 20,
+    "batch_size": 128,
+    "optim_cfg": {
+        "optimizer": "adam",
+        "lr": 0.01
+    },
+    "grad_accumulation_steps": 1
+}

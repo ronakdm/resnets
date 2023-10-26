@@ -115,7 +115,7 @@ def preprocess(x_tr, x_te, border=4):
 #     return train_loader, test_loader, compute_image_classification_metrics
 
 
-def get_cifar10_loaders(batch_size, root="/mnt/ssd/ronak/datasets/"):
+def get_cifar10_loaders(batch_size, rank, root="/mnt/ssd/ronak/datasets/"):
     # Get train data.
     train_data = CIFAR10(root, download=True)
     test_data = CIFAR10(root, train=False, download=True)
@@ -132,10 +132,10 @@ def get_cifar10_loaders(batch_size, root="/mnt/ssd/ronak/datasets/"):
     train_dataloader = DataLoader(
         train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
     )
-    print("{:>5,} training samples.".format(len(train_dataset)))
+    print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
     test_dataset = ImageClassificationDataset(x_test, y_test)
     test_dataloader = DataLoader(
         test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
     )
-    print("{:>5,} test samples.".format(len(test_dataset)))
+    print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
     return train_dataloader, test_dataloader

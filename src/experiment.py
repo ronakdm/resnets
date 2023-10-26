@@ -8,8 +8,11 @@ import sys
 import os
 import pandas as pd
 import json
-from configs import configs
+from torch.distributed import init_process_group, destroy_process_group
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.optim import SGD, Adam
 
+from configs import configs
 from src.models import MyrtleNet
 from src.image_data import get_cifar10_loaders
 
@@ -20,79 +23,100 @@ def format_time(elapsed):
 
 
 class ExperimentHelper:
-    def __init__(self, experiment_name, seed):
-        self.cfg = self._get_config(experiment_name, seed)
+    def __init__(self, experiment_name, seed, device):
+        try:
+            self.cfg = configs[experiment_name]
+        except KeyError:
+            raise NotImplementedError(
+                f"No configuration found for '{experiment_name}' with seed '{seed}'!"
+            )
 
         # Expose what is necessary.
         self.max_iters = self.cfg["max_iters"]
-        self.grad_accumulation_steps = self.cfg["grad_accumulation_steps"]
-        self.device = self.cfg["device"]
-
-        # Load datasets.
-        # self.train_loader, self.val_loader, self.metric_func = self._load_dataset(
-        #     self.cfg["dataset"]
-        # )
+        (
+            self.device,
+            self.ddp,
+            self.is_master_process,
+            self.rank,
+            self.world_size,
+            self.accumulation_steps_per_device,
+        ) = self._configure_ddp(device)
+        self.rank = seed_offset = self.rank
+        self.effective_batch_size = self.cfg["batch_size"]
+        assert (
+            self.effective_batch_size % self.accumulation_steps_per_device == 0
+        ), "'grad_accumulation_steps' * 'world_size' must divide 'batch_size'"
 
         # Seed everything.
-        seed = self.cfg["seed"]
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
+        random.seed(seed + seed_offset)
+        np.random.seed(seed + seed_offset)
+        torch.manual_seed(seed + seed_offset)
+        torch.cuda.manual_seed_all(seed + seed_offset)
 
         # Create logger and logging/output directories.
-        save_dir = os.path.join(
-            self.cfg["experiment_group"],
-            self.cfg["experiment_name"],
-            str(self.cfg["seed"]),
-        )
-        self.log_dir = os.path.join(self.cfg["log_dir"], save_dir)
-        self.output_dir = os.path.join(self.cfg["output_dir"], save_dir)
-        os.makedirs(self.log_dir, exist_ok=True)
-        os.makedirs(self.output_dir, exist_ok=True)
-        with open(os.path.join(self.log_dir, "config.json"), "w") as outfile:
-            json.dump(self.cfg, outfile, indent=4)
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            handlers=[
-                logging.FileHandler(os.path.join(self.log_dir, "output.log")),
-                logging.StreamHandler(sys.stdout),
-            ],
-        )
-        self.best_val_loss = torch.inf
-        self.epoch_stats = []
-        self.total_t0 = time.time()
-        self.t0 = time.time()
-
-    def _get_config(self, experiment_name, seed):
-        for cfg in configs:
-            if cfg["experiment_name"] == experiment_name and cfg["seed"] == seed:
-                return cfg
-        raise NotImplementedError(
-            f"No configuration found for '{experiment_name}' with seed '{seed}'!"
-        )
-
-    # def _load_dataset(self, dataset):
-    #     if dataset == "cifar10":
-    #         return load_cifar10()
-    #     raise NotImplementedError(f"Unrecognized dataset '{dataset}'!")
+        if self.is_master_process:
+            save_dir = os.path.join(
+                self.cfg["experiment_group"],
+                experiment_name,
+                str(seed),
+            )
+            self.log_dir = os.path.join(self.cfg["log_dir"], save_dir)
+            self.output_dir = os.path.join(self.cfg["output_dir"], save_dir)
+            os.makedirs(self.log_dir, exist_ok=True)
+            os.makedirs(self.output_dir, exist_ok=True)
+            with open(os.path.join(self.log_dir, "config.json"), "w") as outfile:
+                json.dump(self.cfg, outfile, indent=4)
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format="%(asctime)s [%(levelname)s] %(message)s",
+                handlers=[
+                    logging.FileHandler(os.path.join(self.log_dir, "output.log")),
+                    logging.StreamHandler(sys.stdout),
+                ],
+            )
+            self.best_val_loss = torch.inf
+            self.epoch_stats = []
+            self.total_t0 = time.time()
+            self.t0 = time.time()
 
     def _format_time(self, elapsed):
         elapsed_rounded = int(round((elapsed)))
         return str(datetime.timedelta(seconds=elapsed_rounded))
 
-    # def get_batch(self, split):
-    #     loader = self.train_loader if split == "train" else self.val_loader
-    #     return loader.get_batch(self.cfg["batch_size"], self.device)
+    def _configure_ddp(self, device):
+        ddp = int(os.environ.get("RANK", -1)) != -1
+        grad_accumulation_steps = self.cfg["grad_accumulation_steps"]
+        if ddp:
+            init_process_group(backend="nccl")
+            local_rank = int(os.environ["LOCAL_RANK"])
+            world_size = int(os.environ["WORLD_SIZE"])
+            device = f"cuda:{local_rank}"
+            torch.cuda.set_device(device)
+            is_master_process = local_rank == 0
+        else:
+            is_master_process = True
+            local_rank = 0
+            world_size = 1
+        assert (
+            grad_accumulation_steps % world_size == 0
+        ), "'world_size' must divide 'grad_accumulation_steps'"
+        accumulation_steps_per_device = grad_accumulation_steps // world_size
 
-    def get_dataloaders(self):
+        return (
+            device,
+            ddp,
+            is_master_process,
+            local_rank,
+            world_size,
+            accumulation_steps_per_device,
+        )
+
+    def get_dataloaders(self, batch_size, rank):
         dataset = self.cfg["dataset"]
-        batch_size = self.cfg["batch_size"]
         root = self.cfg["data_dir"]
 
         if dataset == "cifar10":
-            return get_cifar10_loaders(batch_size, root=root)
+            return get_cifar10_loaders(batch_size, rank, root=root)
         raise NotImplementedError(f"Unrecognized dataset '{dataset}'!")
 
     def get_model(self):
@@ -104,58 +128,94 @@ class ExperimentHelper:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 
         # Save a snapshot of the network architecture.
-        with open(os.path.join(self.log_dir, "model.txt"), "w") as f:
-            print(model, file=f)
-
+        if self.is_master_process:
+            with open(os.path.join(self.log_dir, "model.txt"), "w") as f:
+                print(model, file=f)
         model.to(self.device)
+
+        # if self.compile:
+        #     model = torch.compile(model)  # requires PyTorch 2.0
+
+        if self.ddp:
+            model = DDP(model, device_ids=[self.device])
+
         return model
 
-    def log_step(self, iter_num, model, loaders):
-        if iter_num % self.cfg["eval_interval"] == 0:
-            if not iter_num == 0:
-                print()
-                logging.info(
-                    f"Steps {iter_num - self.cfg['eval_interval']:>5,} to {iter_num:>5,} took: {self._format_time(time.time() - self.t0)}."
-                )
-                print()
+    def get_optimizer(self, model):
+        optim_cfg = self.cfg["optim_cfg"]
+        algo = optim_cfg["algo"]
+        optimizers = {"sgd": SGD, "adam": Adam}
+        del optim_cfg["algo"]
+        try:
+            optimizer = optimizers[algo](model.parameters(), **optim_cfg)
+            # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            #     optimizer,
+            #     max_lr=optim_cfg["lr"] * 10,
+            #     final_div_factor=10,
+            #     steps_per_epoch=self.cfg["eval_interval"],
+            #     total_steps=self.max_iters,
+            #     pct_start=0.05,
+            # )
+        except KeyError:
+            raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
+        # return optimizer, scheduler
+        return optimizer
 
-                logging.info(f"Evaluating using {self.cfg['eval_iters']} batches...")
-                self.t0 = time.time()
-                # Compute evaluation metrics.
-                stats = self._compute_metrics(iter_num, model, loaders)
-                with open(
-                    os.path.join(self.log_dir, f"step_{iter_num}.json"), "w"
-                ) as outfile:
-                    json.dump(stats, outfile, indent=4)
-                self.epoch_stats.append(stats)
-                for metric in stats:
-                    logging.info(f"    {metric}: {stats[metric]:0.4f}")
-                logging.info(
-                    f"Evaluation took: {self._format_time(time.time() - self.t0)}."
-                )
-                # Checkpoint model.
-                if stats["validation_loss"] < self.best_val_loss:
-                    logging.info(f"Saving checkpoint to '{self.output_dir}'...")
-                    self.best_val_loss = stats["validation_loss"]
-                    torch.save(
-                        model.state_dict(),
-                        os.path.join(self.output_dir, f"ckpt_{iter_num}.pt"),
+    def log_step(self, macro_iter_num, model, loaders):
+        if (
+            self.is_master_process
+            and macro_iter_num % self.accumulation_steps_per_device == 0
+        ):
+            iter_num = macro_iter_num // self.accumulation_steps_per_device
+            if iter_num % self.cfg["eval_interval"] == 0:
+                if not iter_num == 0:
+                    print()
+                    logging.info(
+                        f"Steps {iter_num - self.cfg['eval_interval']:>5,} to {iter_num:>5,} took: {self._format_time(time.time() - self.t0)}."
                     )
+                    print()
 
-            print()
-            logging.info(
-                f"======== Step {iter_num + 1:>5,} / {self.max_iters:>5,} ========"
-            )
-            logging.info("Training...")
+                    logging.info(
+                        f"Evaluating using {self.cfg['eval_iters']} batches..."
+                    )
+                    self.t0 = time.time()
+                    # Compute evaluation metrics.
+                    stats = self._compute_metrics(iter_num, model, loaders)
+                    with open(
+                        os.path.join(self.log_dir, f"step_{iter_num}.json"), "w"
+                    ) as outfile:
+                        json.dump(stats, outfile, indent=4)
+                    self.epoch_stats.append(stats)
+                    for metric in stats:
+                        logging.info(f"    {metric}: {stats[metric]:0.4f}")
+                    logging.info(
+                        f"Evaluation took: {self._format_time(time.time() - self.t0)}."
+                    )
+                    # Checkpoint model.
+                    if stats["validation_loss"] < self.best_val_loss:
+                        logging.info(f"Saving checkpoint to '{self.output_dir}'...")
+                        self.best_val_loss = stats["validation_loss"]
+                        raw_model = model if not self.ddp else model.module
+                        torch.save(
+                            raw_model.state_dict(),
+                            os.path.join(self.output_dir, f"ckpt_{iter_num}.pt"),
+                        )
 
-            # Reset timer.
-            self.t0 = time.time()
+                if not iter_num == self.max_iters:
+                    print()
+                    logging.info(
+                        f"======== Step {iter_num + 1:>5,} / {self.max_iters:>5,} ========"
+                    )
+                    logging.info("Training...")
 
-        elif iter_num % (self.cfg["eval_interval"] // 5) == 0 and not iter_num == 0:
-            elapsed = format_time(time.time() - self.t0)
-            logging.info(
-                f"    step {iter_num:>5,} / {self.max_iters:>5,}.    elapsed: {elapsed}."
-            )
+                # Reset timer.
+                self.t0 = time.time()
+
+            elif iter_num % (self.cfg["eval_interval"] // 5) == 0 and not iter_num == 0:
+                elapsed = format_time(time.time() - self.t0)
+                logging.info(
+                    f"    step {iter_num:>5,} / {self.max_iters:>5,}.    elapsed: {elapsed}."
+                )
 
     @torch.no_grad
     def _compute_metrics(self, iter_num, model, loaders):
@@ -180,12 +240,15 @@ class ExperimentHelper:
         return out
 
     def end_experiment(self):
-        print()
-        logging.info(
-            f"Training complete! Total time: {format_time(time.time() - self.total_t0)}"
-        )
+        if self.is_master_process:
+            print()
+            logging.info(
+                f"Training complete! Total time: {format_time(time.time() - self.total_t0)}"
+            )
 
-        # Save epoch metrics in readable format.
-        df = pd.DataFrame(self.epoch_stats)
-        with open(os.path.join(self.log_dir, "epoch_stats.csv"), "w") as f:
-            df.to_csv(f, index=False)
+            # Save epoch metrics in readable format.
+            df = pd.DataFrame(self.epoch_stats)
+            with open(os.path.join(self.log_dir, "epoch_stats.csv"), "w") as f:
+                df.to_csv(f, index=False)
+        if self.ddp:
+            destroy_process_group()
