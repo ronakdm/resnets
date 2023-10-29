@@ -1,0 +1,25 @@
+{
+    "experiment_group": "debug",
+    "log_dir": "logs/",
+    "output_dir": "/mnt/ssd/ronak/output",
+    "data_dir": "/mnt/ssd/ronak/datasets/",
+    "dataset": "cifar10",
+    "model_cfg": {
+        "architecture": "myrtle_net",
+        "n_layers": 3,
+        "residual_blocks": [
+            0,
+            2
+        ]
+    },
+    "init_from": "scratch",
+    "max_iters": 300,
+    "eval_interval": 100,
+    "eval_iters": 5,
+    "batch_size": 512,
+    "optim_cfg": {
+        "algo": "adam",
+        "lr": 0.003
+    },
+    "grad_accumulation_steps": 1
+}

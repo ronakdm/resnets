@@ -20,8 +20,8 @@ parser.add_argument("--device", type=str, default="cuda:0", help="gpu index")
 args = parser.parse_args()
 experiment_name, seed, device = args.experiment_name, args.seed, args.device
 
-# Option B: Use when debugging.
-# experiment_name, seed = "debug", 0
+# Option B: Use with debugger.
+# experiment_name, seed, device = "debug", 0, 0
 
 # Build model.
 helper = ExperimentHelper(experiment_name, seed, device)
@@ -34,6 +34,8 @@ is_ddp_run, device, rank, world_size = (
     helper.rank,
     helper.world_size,
 )
+optim = helper.optim_cfg
+lr, wd, mu = optim["lr"], optim["weight_decay"], optim["momentum"]
 
 # Load data.
 accumulation_steps_per_device = helper.accumulation_steps_per_device
@@ -41,10 +43,11 @@ batch_size = helper.effective_batch_size // (accumulation_steps_per_device * wor
 train_loader, val_loader = helper.get_dataloaders(batch_size, rank)
 
 # Build optimizer.
-optimizer = helper.get_optimizer(model)
+# optimizer = helper.get_optimizer(model)
 
 # Run experiment.
 model.train()
+momentum = [torch.zeros(param.shape).to(device) for param in model.parameters()]
 iter_num = 0
 while iter_num < helper.max_iters * accumulation_steps_per_device:
     for X, Y in train_loader:
@@ -59,10 +62,26 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
             )
         loss, logits = model(X.to(device), Y.to(device))
         loss = loss / accumulation_steps_per_device
-        loss.backward()
 
+        # compute the gradient using automatic differentiation
+        parameters = list(model.parameters())
+        gradients = torch.autograd.grad(outputs=loss, inputs=parameters)
+
+        # perform SGD update.
+        # TODO: gradient accumulation, learning rate schedule
         if iter_num % accumulation_steps_per_device == 0:
-            optimizer.step()
-            # scheduler.step()
-            optimizer.zero_grad(set_to_none=True)
+            with torch.no_grad():
+                for param, g, mom in zip(parameters, gradients, momentum):
+                    # update momentum
+                    mom *= mu
+                    mom += g
+
+                    # update parameter
+                    param *= 1 - wd
+                    param -= lr * mom
+
+        # if iter_num % accumulation_steps_per_device == 0:
+        #     optimizer.step()
+        #     # scheduler.step()
+        #     optimizer.zero_grad(set_to_none=True)
 helper.end_experiment()

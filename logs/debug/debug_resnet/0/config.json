@@ -1,0 +1,21 @@
+{
+    "experiment_group": "debug",
+    "model_cfg": {
+        "architecture": "resnet",
+        "n_layers": 3
+    },
+    "max_iters": 300,
+    "eval_interval": 100,
+    "eval_iters": 5,
+    "batch_size": 512,
+    "grad_accumulation_steps": 1,
+    "log_dir": "logs/",
+    "output_dir": "/mnt/ssd/ronak/output",
+    "data_dir": "/mnt/ssd/ronak/datasets/",
+    "dataset": "cifar10",
+    "init_from": "scratch",
+    "optim_cfg": {
+        "algo": "adam",
+        "lr": 0.003
+    }
+}

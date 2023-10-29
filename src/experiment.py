@@ -12,8 +12,8 @@ from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam
 
-from configs import configs
-from src.models import MyrtleNet
+from configs import configs, defaults
+from src.image_models import MyrtleNet, ResNet
 from src.image_data import get_cifar10_loaders
 
 
@@ -26,6 +26,10 @@ class ExperimentHelper:
     def __init__(self, experiment_name, seed, device):
         try:
             self.cfg = configs[experiment_name]
+            default = defaults[self.cfg["experiment_group"]]
+            for key in default:
+                if key not in self.cfg:
+                    self.cfg[key] = default[key]
         except KeyError:
             raise NotImplementedError(
                 f"No configuration found for '{experiment_name}' with seed '{seed}'!"
@@ -33,6 +37,7 @@ class ExperimentHelper:
 
         # Expose what is necessary.
         self.max_iters = self.cfg["max_iters"]
+        self.optim_cfg = self.cfg["optim_cfg"]
         (
             self.device,
             self.ddp,
@@ -86,6 +91,9 @@ class ExperimentHelper:
     def _configure_ddp(self, device):
         ddp = int(os.environ.get("RANK", -1)) != -1
         grad_accumulation_steps = self.cfg["grad_accumulation_steps"]
+        assert (
+            grad_accumulation_steps == 1
+        ), "Hand-coded optimizer currently does not support gradient accumulation!"
         if ddp:
             init_process_group(backend="nccl")
             local_rank = int(os.environ["LOCAL_RANK"])
@@ -124,17 +132,23 @@ class ExperimentHelper:
         arch = model_cfg["architecture"]
         if arch == "myrtle_net":
             model = MyrtleNet(**model_cfg).float()
+        elif arch == "resnet":
+            model = ResNet(**model_cfg).float()
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
+
+        if isinstance(self.cfg["init_from"], int):
+            # attempt to resume from a checkpoint.
+            iter_num = self.cfg["init_from"]
+            model.load_state_dict(
+                torch.load(os.path.join(self.output_dir, f"ckpt_{iter_num}.pt"))
+            )
 
         # Save a snapshot of the network architecture.
         if self.is_master_process:
             with open(os.path.join(self.log_dir, "model.txt"), "w") as f:
                 print(model, file=f)
         model.to(self.device)
-
-        # if self.compile:
-        #     model = torch.compile(model)  # requires PyTorch 2.0
 
         if self.ddp:
             model = DDP(model, device_ids=[self.device])

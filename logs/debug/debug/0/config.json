@@ -1,7 +1,5 @@
 {
     "experiment_group": "debug",
-    "experiment_name": "debug",
-    "seed": 0,
     "log_dir": "logs/",
     "output_dir": "/mnt/ssd/ronak/output",
     "data_dir": "/mnt/ssd/ronak/datasets/",
@@ -14,14 +12,16 @@
             2
         ]
     },
-    "max_iters": 4000,
+    "init_from": "scratch",
+    "max_iters": 300,
     "eval_interval": 100,
     "eval_iters": 5,
     "batch_size": 512,
-    "device": "cuda:0",
     "optim_cfg": {
-        "optimizer": "adam",
-        "lr": 0.003
+        "algo": "sgd",
+        "lr": 0.003,
+        "weight_decay": 0.0005,
+        "momentum": 0.9
     },
     "grad_accumulation_steps": 1
 }

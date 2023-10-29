@@ -1,0 +1,6 @@
+{
+    "train_accuracy": 0.125,
+    "train_loss": 2.036703109741211,
+    "validation_accuracy": 0.375,
+    "validation_loss": 2.8389108180999756
+}
