@@ -149,18 +149,18 @@ defaults = {
         # model
         "model_cfg": {
             "architecture": "resnet",
-            "n_layers": 3,
+            "n_layers": 5,
         },
         "init_from": "scratch",
         # taining
-        "max_iters": 3000,
+        "max_iters": 4000,
         "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 512,
         "optim_cfg": {
             "algo": "sgd",
-            "lr": 0.03,
-            "weight_decay": 0.0005,
+            "lr": 0.06,
+            "weight_decay": 5e-5,
             "momentum": 0.9,
         },
         "grad_accumulation_steps": 1,

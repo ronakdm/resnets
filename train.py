@@ -34,8 +34,7 @@ is_ddp_run, device, rank, world_size = (
     helper.rank,
     helper.world_size,
 )
-optim = helper.optim_cfg
-lr, wd, mu = optim["lr"], optim["weight_decay"], optim["momentum"]
+wd, mu = helper.optim_cfg["weight_decay"], helper.optim_cfg["momentum"]
 
 # Load data.
 accumulation_steps_per_device = helper.accumulation_steps_per_device
@@ -70,6 +69,7 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
         # perform SGD update.
         # TODO: gradient accumulation, learning rate schedule
         if iter_num % accumulation_steps_per_device == 0:
+            lr = helper.get_lr(iter_num)
             with torch.no_grad():
                 for param, g, mom in zip(parameters, gradients, momentum):
                     # update momentum

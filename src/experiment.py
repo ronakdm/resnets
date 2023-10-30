@@ -8,6 +8,7 @@ import sys
 import os
 import pandas as pd
 import json
+import math
 from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam
@@ -155,25 +156,44 @@ class ExperimentHelper:
 
         return model
 
-    def get_optimizer(self, model):
-        optim_cfg = self.cfg["optim_cfg"]
-        algo = optim_cfg["algo"]
-        optimizers = {"sgd": SGD, "adam": Adam}
-        del optim_cfg["algo"]
-        try:
-            optimizer = optimizers[algo](model.parameters(), **optim_cfg)
-            # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            #     optimizer,
-            #     max_lr=optim_cfg["lr"] * 10,
-            #     final_div_factor=10,
-            #     steps_per_epoch=self.cfg["eval_interval"],
-            #     total_steps=self.max_iters,
-            #     pct_start=0.05,
-            # )
-        except KeyError:
-            raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
-        # return optimizer, scheduler
-        return optimizer
+    def get_lr(self, it):
+        optim = self.optim_cfg
+        # 1) linear warmup for warmup_iters steps
+        learning_rate = optim["lr"]
+        warmup_iters = int(0.01 * self.max_iters)
+        lr_decay_iters = self.max_iters
+        min_lr = learning_rate / 10
+
+        if it < warmup_iters:
+            return learning_rate * it / warmup_iters
+        # 2) if it > lr_decay_iters, return min learning rate
+        if it > lr_decay_iters:
+            return min_lr
+        # 3) in between, use cosine decay down to min learning rate
+        decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+        assert 0 <= decay_ratio <= 1
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
+        return min_lr + coeff * (learning_rate - min_lr)
+
+    # def get_optimizer(self, model):
+    #     optim_cfg = self.cfg["optim_cfg"]
+    #     algo = optim_cfg["algo"]
+    #     optimizers = {"sgd": SGD, "adam": Adam}
+    #     del optim_cfg["algo"]
+    #     try:
+    #         optimizer = optimizers[algo](model.parameters(), **optim_cfg)
+    #         # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #         #     optimizer,
+    #         #     max_lr=optim_cfg["lr"] * 10,
+    #         #     final_div_factor=10,
+    #         #     steps_per_epoch=self.cfg["eval_interval"],
+    #         #     total_steps=self.max_iters,
+    #         #     pct_start=0.05,
+    #         # )
+    #     except KeyError:
+    #         raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
+    #     # return optimizer, scheduler
+    #     return optimizer
 
     def log_step(self, macro_iter_num, model, loaders):
         if (
