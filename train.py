@@ -2,6 +2,7 @@ import torch
 import argparse
 
 from src.experiment import ExperimentHelper
+from src.raking import raking_resample
 
 # TODO: ddp, gradient clipping, optimizer
 
@@ -39,7 +40,9 @@ wd, mu = helper.optim_cfg["weight_decay"], helper.optim_cfg["momentum"]
 # Load data.
 accumulation_steps_per_device = helper.accumulation_steps_per_device
 batch_size = helper.effective_batch_size // (accumulation_steps_per_device * world_size)
-train_loader, val_loader = helper.get_dataloaders(batch_size, rank)
+train_loader, val_loader, marginals = helper.get_dataloaders(batch_size, rank)
+use_raking = helper.use_raking
+num_rounds = helper.num_raking_rounds
 
 # Build optimizer.
 # optimizer = helper.get_optimizer(model)
@@ -49,7 +52,7 @@ model.train()
 momentum = [torch.zeros(param.shape).to(device) for param in model.parameters()]
 iter_num = 0
 while iter_num < helper.max_iters * accumulation_steps_per_device:
-    for X, Y in train_loader:
+    for X, Y, cx, cy in train_loader:
         iter_num += 1
         helper.log_step(iter_num, model, [train_loader, val_loader])
         if iter_num >= helper.max_iters:
@@ -59,6 +62,10 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
             model.require_backward_grad_sync = (
                 iter_num % accumulation_steps_per_device == 0
             )
+
+        if use_raking:
+            X, Y = raking_resample(X, Y, cx.numpy(), cy.numpy(), marginals, num_rounds)
+
         loss, logits = model(X.to(device), Y.to(device))
         loss = loss / accumulation_steps_per_device
 

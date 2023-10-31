@@ -81,6 +81,7 @@ configs = {
     "resnet_default": {
         "experiment_group": "resnet",
     },
+    "resnet_raking": {"experiment_group": "resnet", "use_raking": True},
 }
 
 # maps experiment group to default settings
@@ -92,6 +93,7 @@ defaults = {
         # data
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
+        "n_bins": 40,
         # model
         "model_cfg": {
             "architecture": "myrtle_net",
@@ -104,6 +106,7 @@ defaults = {
         "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 512,
+        "use_raking": False,
         "optim_cfg": {
             "algo": "sgd",
             "lr": 0.003,
@@ -111,6 +114,7 @@ defaults = {
             "momentum": 0.9,
         },
         "grad_accumulation_steps": 1,
+        "num_raking_rounds": 2,
     },
     "variance": {
         # experiment
@@ -119,6 +123,7 @@ defaults = {
         # data
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
+        "n_bins": 40,
         # model
         "model_cfg": {
             "architecture": "myrtle_net",
@@ -131,6 +136,7 @@ defaults = {
         "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 32,
+        "use_raking": False,
         "optim_cfg": {
             "algo": "sgd",
             "lr": 0.003,
@@ -138,6 +144,7 @@ defaults = {
             "momentum": 0.9,
         },
         "grad_accumulation_steps": 16,
+        "num_raking_rounds": 2,
     },
     "resnet": {
         # experiment
@@ -146,6 +153,7 @@ defaults = {
         # data
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
+        "n_bins": 40,
         # model
         "model_cfg": {
             "architecture": "resnet",
@@ -157,6 +165,7 @@ defaults = {
         "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 512,
+        "use_raking": False,
         "optim_cfg": {
             "algo": "sgd",
             "lr": 0.06,
@@ -164,5 +173,6 @@ defaults = {
             "momentum": 0.9,
         },
         "grad_accumulation_steps": 1,
+        "num_raking_rounds": 2,
     },
 }

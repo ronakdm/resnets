@@ -4,6 +4,7 @@
     "output_dir": "/mnt/ssd/ronak/output",
     "data_dir": "/mnt/ssd/ronak/datasets/",
     "dataset": "cifar10",
+    "n_bins": 40,
     "model_cfg": {
         "architecture": "myrtle_net",
         "n_layers": 3,
@@ -23,5 +24,6 @@
         "weight_decay": 0.0005,
         "momentum": 0.9
     },
-    "grad_accumulation_steps": 1
+    "grad_accumulation_steps": 1,
+    "num_raking_rounds": 2
 }

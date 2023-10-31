@@ -94,7 +94,7 @@ class QuantizedImageClassificationDataset(Dataset):
         return self.n
 
     def __getitem__(self, i):
-        return self.pipeline(self.x[i]), self.y[i]
+        return self.pipeline(self.x[i]), self.y[i], self.cx[i], self.cy[i]
 
 
 def preprocess(x_tr, x_te, border=4):
@@ -160,11 +160,6 @@ def get_cifar10_loaders(
     x_test = np.load(os.path.join(root, "x_test.npy"))
     y_test = np.load(os.path.join(root, "y_test.npy"))
 
-    cx_train = np.load(os.path.join(root, f"x_train_quantized_{n_bins}.npy"))
-    cy_train = np.load(os.path.join(root, f"y_train_quantized_{n_bins}.npy"))
-    cx_test = np.load(os.path.join(root, f"x_test_quantized_{n_bins}.npy"))
-    cy_test = np.load(os.path.join(root, f"y_test_quantized_{n_bins}.npy"))
-
     # Apply preprocessing.
     x_train, x_test = preprocess(x_train, x_test)
 
@@ -179,3 +174,40 @@ def get_cifar10_loaders(
     )
     print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
     return train_dataloader, test_dataloader
+
+
+def get_quantized_cifar10_loaders(
+    batch_size, rank, n_bins=40, root="/mnt/ssd/ronak/datasets/cifar10"
+):
+    x_train = np.load(os.path.join(root, "x_train.npy"))
+    y_train = np.load(os.path.join(root, "y_train.npy"))
+    x_test = np.load(os.path.join(root, "x_test.npy"))
+    y_test = np.load(os.path.join(root, "y_test.npy"))
+
+    cx_train = np.load(os.path.join(root, f"x_train_quantized_{n_bins}.npy"))
+    cy_train = np.load(os.path.join(root, f"y_train_quantized_{n_bins}.npy"))
+    cx_test = np.load(os.path.join(root, f"x_test_quantized_{n_bins}.npy"))
+    cy_test = np.load(os.path.join(root, f"y_test_quantized_{n_bins}.npy"))
+
+    px = np.load(os.path.join(root, "x_marginal.npy"))
+    py = np.load(os.path.join(root, "y_marginal.npy"))
+    marginals = (px, py)
+
+    # Apply preprocessing.
+    x_train, x_test = preprocess(x_train, x_test)
+
+    train_dataset = QuantizedImageClassificationDataset(
+        x_train, y_train, cx_train, cy_train, augment=True
+    )
+    train_dataloader = DataLoader(
+        train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
+    )
+    print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
+    test_dataset = QuantizedImageClassificationDataset(
+        x_test, y_test, cx_test, cy_test, augment=False
+    )
+    test_dataloader = DataLoader(
+        test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
+    )
+    print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
+    return train_dataloader, test_dataloader, marginals
