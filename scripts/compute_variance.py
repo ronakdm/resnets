@@ -61,16 +61,20 @@ def compute_variance_curve(
     for step in tqdm(steps):
         fname = os.path.join(out_dir, f"ckpt_{step}.pt")
         if os.path.exists(fname):
-            model = ResNet(**model_cfg)
-            model.load_state_dict(torch.load(fname))
-            model.to(device)
-            model.eval()
-            observed_steps.append(step.item())
-            variances.append(
-                compute_variance(
-                    model, mean_loader, variance_loader, sims, device=device
+            try:
+                model = ResNet(**model_cfg)
+                model.load_state_dict(torch.load(fname))
+                model.to(device)
+                model.eval()
+                observed_steps.append(step.item())
+                variances.append(
+                    compute_variance(
+                        model, mean_loader, variance_loader, sims, device=device
+                    )
                 )
-            )
+            except RuntimeError as e:
+                print(f"Error step {step} due to model mismatch.")
+                raise e
 
     np.save(
         f"notebooks/output/{exp_name}_steps_seed_{seed}.npy", np.array(observed_steps)
@@ -80,17 +84,17 @@ def compute_variance_curve(
     )
 
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--device", type=str, required=True, help="gpu index")
-# parser.add_argument("--seed", type=str, required=True, help="experiment seed")
-# args = parser.parse_args()
-# seed, device = args.seed, args.device
+parser = argparse.ArgumentParser()
+parser.add_argument("--device", type=str, required=True, help="gpu index")
+parser.add_argument("--seed", type=str, required=True, help="experiment seed")
+args = parser.parse_args()
+seed, device = args.seed, args.device
 
-seed, device = 0, "cuda:2"
+# seed, device = 0, "cuda:0"
 
 exp_group = "resnet"
-for exp_name in ["resnet_raking"]:
-    print(f"Computing variance for {exp_name }...")
+for exp_name in ["resnet_default"]:
+    print(f"Computing variance for {exp_name}...")
     compute_variance_curve(
         exp_name, exp_group, seed=seed, sims=50, device=device, augment=False
     )
