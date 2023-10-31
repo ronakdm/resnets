@@ -86,10 +86,10 @@ def compute_variance_curve(
 # args = parser.parse_args()
 # seed, device = args.seed, args.device
 
-seed, device = 0, "cuda:2"
+seed, device = 0, "cuda:0"
 
 exp_group = "resnet"
-for exp_name in ["resnet_raking"]:
+for exp_name in ["resnet_default"]:
     print(f"Computing variance for {exp_name }...")
     compute_variance_curve(
         exp_name, exp_group, seed=seed, sims=50, device=device, augment=False
