@@ -47,14 +47,12 @@ configs = {
         "grad_accumulation_steps": 1,
     },
     "batch_size_128": {
-        # experiment
         "experiment_group": "variance",
         "eval_iters": 40,
         "batch_size": 128,
         "grad_accumulation_steps": 1,
     },
     "batch_size_512": {
-        # experiment
         "experiment_group": "variance",
         "eval_iters": 10,
         "batch_size": 512,
@@ -65,6 +63,41 @@ configs = {
         "eval_iters": 5,
         "batch_size": 2048,
         "grad_accumulation_steps": 4,
+    },
+    "b8": {
+        "experiment_group": "variance",
+        "eval_iters": 640,
+        "batch_size": 8,
+        "grad_accumulation_steps": 1,
+        "augment": False,
+    },
+    "b32": {
+        "experiment_group": "variance",
+        "eval_iters": 160,
+        "batch_size": 32,
+        "grad_accumulation_steps": 1,
+        "augment": False,
+    },
+    "b128": {
+        "experiment_group": "variance",
+        "eval_iters": 40,
+        "batch_size": 128,
+        "grad_accumulation_steps": 1,
+        "augment": False,
+    },
+    "b512": {
+        "experiment_group": "variance",
+        "eval_iters": 10,
+        "batch_size": 512,
+        "grad_accumulation_steps": 1,
+        "augment": False,
+    },
+    "b2048": {
+        "experiment_group": "variance",
+        "eval_iters": 5,
+        "batch_size": 2048,
+        "grad_accumulation_steps": 4,
+        "augment": False,
     },
     "batch_size_8192": {
         "experiment_group": "variance",
@@ -94,6 +127,7 @@ defaults = {
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
         "n_bins": 40,
+        "augment": True,
         # model
         "model_cfg": {
             "architecture": "myrtle_net",
@@ -124,6 +158,7 @@ defaults = {
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
         "n_bins": 40,
+        "augment": True,
         # model
         "model_cfg": {
             "architecture": "myrtle_net",
@@ -154,6 +189,7 @@ defaults = {
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
         "n_bins": 40,
+        "augment": True,
         # model
         "model_cfg": {
             "architecture": "resnet",

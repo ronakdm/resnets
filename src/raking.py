@@ -61,8 +61,7 @@ def raking_resample(x, y, cx, cy, marginals, num_rounds):
     if is_good_event(cx, cy, marginals):
         pmat = raking_ratio(cx, cy, marginals, num_rounds)
         new_pairs = get_new_pairs(cx, cy, pmat)
-        return torch.stack([x[i] for i, j in new_pairs]), torch.stack(
-            [y[j] for i, j in new_pairs]
-        )
+        inds = torch.tensor(list(new_pairs))
+        return x[inds[:, 0]], y[inds[:, 1]]
     else:
         return x, y

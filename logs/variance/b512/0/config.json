@@ -1,0 +1,31 @@
+{
+    "experiment_group": "variance",
+    "eval_iters": 10,
+    "batch_size": 512,
+    "grad_accumulation_steps": 1,
+    "augment": false,
+    "log_dir": "logs/",
+    "output_dir": "/mnt/ssd/ronak/output",
+    "data_dir": "/mnt/ssd/ronak/datasets/",
+    "dataset": "cifar10",
+    "n_bins": 40,
+    "model_cfg": {
+        "architecture": "myrtle_net",
+        "n_layers": 3,
+        "residual_blocks": [
+            0,
+            2
+        ]
+    },
+    "init_from": "scratch",
+    "max_iters": 3000,
+    "eval_interval": 100,
+    "use_raking": false,
+    "optim_cfg": {
+        "algo": "sgd",
+        "lr": 0.003,
+        "weight_decay": 0.0005,
+        "momentum": 0.9
+    },
+    "num_raking_rounds": 2
+}

@@ -126,11 +126,12 @@ class ExperimentHelper:
         dataset = self.cfg["dataset"]
         root = os.path.join(self.cfg["data_dir"], self.cfg["dataset"])
         n_bins = self.cfg["n_bins"]
+        augment = self.cfg["augment"]
 
         if dataset == "cifar10":
             # return get_cifar10_loaders(batch_size, rank, root=root)
             return get_quantized_cifar10_loaders(
-                batch_size, rank, n_bins=n_bins, root=root
+                batch_size, rank, n_bins=n_bins, root=root, augment=augment
             )
         raise NotImplementedError(f"Unrecognized dataset '{dataset}'!")
 

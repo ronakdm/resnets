@@ -177,7 +177,7 @@ def get_cifar10_loaders(
 
 
 def get_quantized_cifar10_loaders(
-    batch_size, rank, n_bins=40, root="/mnt/ssd/ronak/datasets/cifar10"
+    batch_size, rank, n_bins=40, augment=True, root="/mnt/ssd/ronak/datasets/cifar10"
 ):
     x_train = np.load(os.path.join(root, "x_train.npy"))
     y_train = np.load(os.path.join(root, "y_train.npy"))
@@ -197,7 +197,7 @@ def get_quantized_cifar10_loaders(
     x_train, x_test = preprocess(x_train, x_test)
 
     train_dataset = QuantizedImageClassificationDataset(
-        x_train, y_train, cx_train, cy_train, augment=True
+        x_train, y_train, cx_train, cy_train, augment=augment
     )
     train_dataloader = DataLoader(
         train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size

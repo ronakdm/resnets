@@ -22,7 +22,7 @@ args = parser.parse_args()
 experiment_name, seed, device = args.experiment_name, args.seed, args.device
 
 # Option B: Use with debugger.
-# experiment_name, seed, device = "debug", 0, 0
+# experiment_name, seed, device = "resnet_raking", 1, 0
 
 # Build model.
 helper = ExperimentHelper(experiment_name, seed, device)
