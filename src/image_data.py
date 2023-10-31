@@ -1,6 +1,8 @@
 import numpy as np
 import torch
-from torchvision.datasets import CIFAR10
+import os
+
+# from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, CenterCrop
 from torch.utils.data import Dataset, DataLoader, RandomSampler
 
@@ -56,11 +58,37 @@ class Cutout:
 
 
 class ImageClassificationDataset(Dataset):
-    def __init__(self, x, y):
+    def __init__(self, x, y, augment=False):
         self.x = torch.tensor(x).float()
         self.y = torch.tensor(y).long()
         self.n = len(self.x)
-        self.pipeline = Compose([RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)])
+        if augment:
+            self.pipeline = Compose(
+                [RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)]
+            )
+        else:
+            self.pipeline = CenterCrop(32)
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, i):
+        return self.pipeline(self.x[i]), self.y[i]
+
+
+class QuantizedImageClassificationDataset(Dataset):
+    def __init__(self, x, y, cx, cy, augment=False):
+        self.x = torch.tensor(x).float()
+        self.y = torch.tensor(y).long()
+        self.cx = torch.tensor(cx).long()
+        self.cy = torch.tensor(cy).long()
+        self.n = len(self.x)
+        if augment:
+            self.pipeline = Compose(
+                [RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)]
+            )
+        else:
+            self.pipeline = CenterCrop(32)
 
     def __len__(self):
         return self.n
@@ -115,25 +143,37 @@ def preprocess(x_tr, x_te, border=4):
 #     return train_loader, test_loader, compute_image_classification_metrics
 
 
-def get_cifar10_loaders(batch_size, rank, root="/mnt/ssd/ronak/datasets/"):
+def get_cifar10_loaders(
+    batch_size, rank, n_bins, root="/mnt/ssd/ronak/datasets/cifar10"
+):
     # Get train data.
-    train_data = CIFAR10(root, download=True)
-    test_data = CIFAR10(root, train=False, download=True)
+    # train_data = CIFAR10(root, download=True)
+    # test_data = CIFAR10(root, train=False, download=True)
 
-    x_train = train_data.data
-    x_test = test_data.data
-    y_train = np.array(train_data.targets)
-    y_test = np.array(test_data.targets)
+    # x_train = train_data.data
+    # x_test = test_data.data
+    # y_train = np.array(train_data.targets)
+    # y_test = np.array(test_data.targets)
+
+    x_train = np.load(os.path.join(root, "x_train.npy"))
+    y_train = np.load(os.path.join(root, "y_train.npy"))
+    x_test = np.load(os.path.join(root, "x_test.npy"))
+    y_test = np.load(os.path.join(root, "y_test.npy"))
+
+    cx_train = np.load(os.path.join(root, f"x_train_quantized_{n_bins}.npy"))
+    cy_train = np.load(os.path.join(root, f"y_train_quantized_{n_bins}.npy"))
+    cx_test = np.load(os.path.join(root, f"x_test_quantized_{n_bins}.npy"))
+    cy_test = np.load(os.path.join(root, f"y_test_quantized_{n_bins}.npy"))
 
     # Apply preprocessing.
     x_train, x_test = preprocess(x_train, x_test)
 
-    train_dataset = ImageClassificationDataset(x_train, y_train)
+    train_dataset = ImageClassificationDataset(x_train, y_train, augment=True)
     train_dataloader = DataLoader(
         train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
     )
     print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
-    test_dataset = ImageClassificationDataset(x_test, y_test)
+    test_dataset = ImageClassificationDataset(x_test, y_test, augment=False)
     test_dataloader = DataLoader(
         test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
     )

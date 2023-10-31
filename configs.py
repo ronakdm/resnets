@@ -153,7 +153,7 @@ defaults = {
         },
         "init_from": "scratch",
         # taining
-        "max_iters": 4000,
+        "max_iters": 3000,
         "eval_interval": 100,
         "eval_iters": 5,
         "batch_size": 512,
