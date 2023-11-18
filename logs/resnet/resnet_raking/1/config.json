@@ -18,7 +18,7 @@
     "batch_size": 512,
     "optim_cfg": {
         "algo": "sgd",
-        "lr": 0.06,
+        "lr": 0.001,
         "weight_decay": 5e-05,
         "momentum": 0.9
     },

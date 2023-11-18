@@ -2,9 +2,9 @@ import torch
 import argparse
 
 from src.experiment import ExperimentHelper
-from src.raking import raking_resample
+from src.raking import get_raking_weights
 
-# TODO: ddp, gradient clipping, optimizer
+# TODO: gradient clipping 
 
 # Option A: Use when running as a script.
 parser = argparse.ArgumentParser()
@@ -45,7 +45,7 @@ use_raking = helper.use_raking
 num_rounds = helper.num_raking_rounds
 
 # Build optimizer.
-# optimizer = helper.get_optimizer(model)
+optimizer = helper.get_optimizer(model)
 
 # Run experiment.
 model.train()
@@ -64,31 +64,19 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
             )
 
         if use_raking:
-            X, Y = raking_resample(X, Y, cx.numpy(), cy.numpy(), marginals, num_rounds)
-
-        loss, logits = model(X.to(device), Y.to(device))
+            weights = get_raking_weights(
+                X, Y, cx.numpy(), cy.numpy(), marginals, num_rounds
+            )
+            loss, logits = model(X.to(device), Y.to(device), weights.to(device))
+        else:
+            loss, logits = model(X.to(device), Y.to(device))
         loss = loss / accumulation_steps_per_device
 
-        # compute the gradient using automatic differentiation
-        parameters = list(model.parameters())
-        gradients = torch.autograd.grad(outputs=loss, inputs=parameters)
-
-        # perform SGD update.
-        # TODO: gradient accumulation, learning rate schedule
         if iter_num % accumulation_steps_per_device == 0:
             lr = helper.get_lr(iter_num)
-            with torch.no_grad():
-                for param, g, mom in zip(parameters, gradients, momentum):
-                    # update momentum
-                    mom *= mu
-                    mom += g
-
-                    # update parameter
-                    param *= 1 - wd
-                    param -= lr * mom
-
-        # if iter_num % accumulation_steps_per_device == 0:
-        #     optimizer.step()
-        #     # scheduler.step()
-        #     optimizer.zero_grad(set_to_none=True)
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
+            optimizer.step()
+            # scheduler.step()
+            optimizer.zero_grad(set_to_none=True)
 helper.end_experiment()

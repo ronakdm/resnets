@@ -94,9 +94,9 @@ class ExperimentHelper:
     def _configure_ddp(self, device):
         ddp = int(os.environ.get("RANK", -1)) != -1
         grad_accumulation_steps = self.cfg["grad_accumulation_steps"]
-        assert (
-            grad_accumulation_steps == 1
-        ), "Hand-coded optimizer currently does not support gradient accumulation!"
+        # assert (
+        #     grad_accumulation_steps == 1
+        # ), "Hand-coded optimizer currently does not support gradient accumulation!"
         if ddp:
             init_process_group(backend="nccl")
             local_rank = int(os.environ["LOCAL_RANK"])
@@ -167,7 +167,8 @@ class ExperimentHelper:
         optim = self.optim_cfg
         # 1) linear warmup for warmup_iters steps
         learning_rate = optim["lr"]
-        warmup_iters = int(0.01 * self.max_iters)
+        # warmup_iters = int(0.01 * self.max_iters)
+        warmup_iters = 0.0
         lr_decay_iters = self.max_iters
         min_lr = learning_rate / 10
 
@@ -182,25 +183,25 @@ class ExperimentHelper:
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return min_lr + coeff * (learning_rate - min_lr)
 
-    # def get_optimizer(self, model):
-    #     optim_cfg = self.cfg["optim_cfg"]
-    #     algo = optim_cfg["algo"]
-    #     optimizers = {"sgd": SGD, "adam": Adam}
-    #     del optim_cfg["algo"]
-    #     try:
-    #         optimizer = optimizers[algo](model.parameters(), **optim_cfg)
-    #         # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-    #         #     optimizer,
-    #         #     max_lr=optim_cfg["lr"] * 10,
-    #         #     final_div_factor=10,
-    #         #     steps_per_epoch=self.cfg["eval_interval"],
-    #         #     total_steps=self.max_iters,
-    #         #     pct_start=0.05,
-    #         # )
-    #     except KeyError:
-    #         raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
-    #     # return optimizer, scheduler
-    #     return optimizer
+    def get_optimizer(self, model):
+        optim_cfg = self.cfg["optim_cfg"]
+        algo = optim_cfg["algo"]
+        optimizers = {"sgd": SGD, "adam": Adam}
+        del optim_cfg["algo"]
+        try:
+            optimizer = optimizers[algo](model.parameters(), **optim_cfg)
+            # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            #     optimizer,
+            #     max_lr=optim_cfg["lr"] * 10,
+            #     final_div_factor=10,
+            #     steps_per_epoch=self.cfg["eval_interval"],
+            #     total_steps=self.max_iters,
+            #     pct_start=0.05,
+            # )
+        except KeyError:
+            raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
+        # return optimizer, scheduler
+        return optimizer
 
     def log_step(self, macro_iter_num, model, loaders):
         if (

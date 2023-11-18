@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -155,12 +156,17 @@ class ResNet(nn.Module):
         n_features = 64 * 2**n_layers * height * width
         self.classifier = nn.Sequential(nn.Flatten(1), nn.Linear(n_features, n_classes))
 
-    def forward(self, x, y=None):
+    def forward(self, x, y=None, weights=None):
         h = F.relu(self.embed(x), inplace=True)
         for layer in self.layers:
             h = layer(h)
         logits = self.classifier(h)
         loss = None
         if not (y is None):
-            loss = F.cross_entropy(logits, y)
+            if not (weights is None):
+                loss = torch.dot(weights, F.cross_entropy(logits, y, reduction="none"))
+                if loss > 100:
+                    print("break to inspect weights")
+            else:
+                loss = F.cross_entropy(logits, y)
         return loss, logits
