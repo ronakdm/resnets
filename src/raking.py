@@ -1,82 +1,37 @@
 import numpy as np
-import itertools
-import pandas as pd
-import torch
-import math
+import logging
+import os
 
 
-def is_good_event(cx, cy, marginals):
-    return len(np.unique(cx)) == len(marginals[0]) and len(np.unique(cy)) == len(
-        marginals[1]
-    )
-
-
-def count_freq(X, Y, sizes):
+def count_freq(X, Y, marginals):
     # count pairs
     pairs = list(zip(X, Y))
     ind, count = np.unique(pairs, axis=0, return_counts=True)
-    cmat = np.zeros(sizes)
+    cmat = np.zeros((len(marginals[0]), len(marginals[1])), dtype=np.float32)
     cmat[ind[:, 0], ind[:, 1]] = count
-    return cmat / len(pairs)
+    # remove bins with zero mass
+    indx, X = np.unique(X, return_inverse=True)
+    indy, Y = np.unique(Y, return_inverse=True)
+    return X, Y, cmat[np.ix_(indx, indy)], (marginals[0][indx], marginals[1][indy])
 
 
-def raking_ratio(X, Y, marginals, num_rounds):
-    pmat = count_freq(X, Y, (len(marginals[0]), len(marginals[1])))
-    est = [pmat]
-    for _ in range(num_rounds):
+def raking_ratio(pmat, marginals, num_iter):
+    if np.sum(np.sum(pmat, axis=1) == 0) + np.sum(np.sum(pmat, axis=0) == 0) > 0:
+        raise RuntimeError(
+            "Missing cluster in the batch; try a smaller quantization level or a larger batch size."
+        )
+    for _ in range(num_iter):
         pmat = (marginals[0] / np.sum(pmat, axis=1)).reshape(-1, 1) * pmat
         pmat = pmat * (marginals[1] / np.sum(pmat, axis=0))
-        est.append(pmat)
-    return est[-1]
+    return pmat
 
 
-def get_new_indices(X, Y, pmat):
-    n = len(X)
-    x_bins, y_bins = pmat.shape
-
-    # get probability distribution over pairs of examples
-    df1 = pd.DataFrame({"ind": np.arange(n), "bins": [(x, y) for x, y in zip(X, Y)]})
-    df2 = pd.DataFrame(
-        {
-            "bins": list(itertools.product(np.arange(x_bins), np.arange(y_bins))),
-            "prob": pmat.reshape(-1),
-        }
-    )
-    bin_names, bin_counts = np.unique(df1["bins"], return_counts=True)
-    df = df1.merge(df2, on="bins", how="left").merge(
-        pd.DataFrame({"bins": bin_names, "counts": bin_counts}), on="bins", how="left"
-    )
-    weight = df["prob"].to_numpy() / np.maximum(1.0, df["counts"].to_numpy())
-
-    # sample indices
-    idx = np.random.choice(np.arange(n), size=(n,), replace=True, p=weight)
-    return torch.tensor(idx)
-
-
-def get_new_weights(X, Y, pmat):
-    n = len(X)
-    x_bins, y_bins = pmat.shape
-
-    # get probability distribution over pairs of examples
-    df1 = pd.DataFrame({"ind": np.arange(n), "bins": [(x, y) for x, y in zip(X, Y)]})
-    df2 = pd.DataFrame(
-        {
-            "bins": list(itertools.product(np.arange(x_bins), np.arange(y_bins))),
-            "prob": pmat.reshape(-1),
-        }
-    )
-    bin_names, bin_counts = np.unique(df1["bins"], return_counts=True)
-    df = df1.merge(df2, on="bins", how="left").merge(
-        pd.DataFrame({"bins": bin_names, "counts": bin_counts}), on="bins", how="left"
-    )
-    weight = df["prob"].to_numpy() / np.maximum(1.0, df["counts"].to_numpy())
-    assert np.abs(weight.sum() - 1.0) < 1e-8
-    return torch.tensor(weight).float()
-
-
-def get_raking_weights(x, y, cx, cy, marginals, num_rounds):
-    if is_good_event(cx, cy, marginals):
-        pmat = raking_ratio(cx, cy, marginals, num_rounds)
-        return get_new_weights(cx, cy, pmat)
-    else:
-        return torch.ones(len(x)) / len(x)
+def get_raking_ratio_weight(idx, quantization, num_rounds):
+    marginals = (quantization["image_marginal"], quantization["class_marginal"])
+    X = quantization["image_labels"][idx]
+    Y = quantization["class_labels"][idx]
+    X, Y, cmat, marginals = count_freq(X, Y, marginals)
+    # logging.info(f"Batch clusters {len(marginals[0])}, {len(marginals[1])}")
+    pmat = raking_ratio(cmat / len(X), marginals, num_rounds)
+    prob = pmat[X, Y] / cmat[X, Y]
+    return prob / np.sum(prob)

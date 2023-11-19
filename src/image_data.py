@@ -58,22 +58,17 @@ class Cutout:
 
 
 class ImageClassificationDataset(Dataset):
-    def __init__(self, x, y, augment=False):
+    def __init__(self, x, y, transform):
         self.x = torch.tensor(x).float()
         self.y = torch.tensor(y).long()
         self.n = len(self.x)
-        if augment:
-            self.pipeline = Compose(
-                [RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)]
-            )
-        else:
-            self.pipeline = CenterCrop(32)
+        self.transform = transform
 
     def __len__(self):
         return self.n
 
     def __getitem__(self, i):
-        return self.pipeline(self.x[i]), self.y[i]
+        return i, self.transform(self.x[i]), self.y[i]
 
 
 class QuantizedImageClassificationDataset(Dataset):
@@ -143,71 +138,75 @@ def preprocess(x_tr, x_te, border=4):
 #     return train_loader, test_loader, compute_image_classification_metrics
 
 
+# def get_cifar10_loaders(
+#     batch_size, rank, n_bins, root="/mnt/ssd/ronak/datasets/cifar10"
+# ):
+#     # Get train data.
+#     # train_data = CIFAR10(root, download=True)
+#     # test_data = CIFAR10(root, train=False, download=True)
+
+#     # x_train = train_data.data
+#     # x_test = test_data.data
+#     # y_train = np.array(train_data.targets)
+#     # y_test = np.array(test_data.targets)
+
+#     x_train = np.load(os.path.join(root, "x_train.npy"))
+#     y_train = np.load(os.path.join(root, "y_train.npy"))
+#     x_test = np.load(os.path.join(root, "x_test.npy"))
+#     y_test = np.load(os.path.join(root, "y_test.npy"))
+
+#     # Apply preprocessing.
+#     x_train, x_test = preprocess(x_train, x_test)
+
+#     train_transform = Compose(
+#             [RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)]
+#         )
+#     test_transform = CenterCrop(32)
+
+#     train_dataset = ImageClassificationDataset(x_train, y_train, train_transform)
+#     train_dataloader = DataLoader(
+#         train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
+#     )
+#     print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
+#     test_dataset = ImageClassificationDataset(x_test, y_test, test_transform)
+#     test_dataloader = DataLoader(
+#         test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
+#     )
+#     print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
+#     return train_dataloader, test_dataloader
+
+
 def get_cifar10_loaders(
-    batch_size, rank, n_bins, root="/mnt/ssd/ronak/datasets/cifar10"
+    batch_size, rank, n_bins=50, augment=True, root="/mnt/ssd/ronak/datasets/cifar10"
 ):
-    # Get train data.
-    # train_data = CIFAR10(root, download=True)
-    # test_data = CIFAR10(root, train=False, download=True)
-
-    # x_train = train_data.data
-    # x_test = test_data.data
-    # y_train = np.array(train_data.targets)
-    # y_test = np.array(test_data.targets)
-
     x_train = np.load(os.path.join(root, "x_train.npy"))
     y_train = np.load(os.path.join(root, "y_train.npy"))
-    x_test = np.load(os.path.join(root, "x_test.npy"))
-    y_test = np.load(os.path.join(root, "y_test.npy"))
+    x_test  = np.load(os.path.join(root, "x_test.npy"))
+    y_test  = np.load(os.path.join(root, "y_test.npy"))
+
+    model_name = 'convnext_base'
+    quantization = {
+            "image_labels":   np.load(os.path.join(root, f"quantization/{model_name}_kmeans_{n_bins}/image_labels.npy")),
+            "class_labels":   np.load(os.path.join(root, f"quantization/{model_name}_kmeans_{n_bins}/class_labels.npy")),
+            "image_marginal": np.load(os.path.join(root, f'quantization/{model_name}_kmeans_{n_bins}/image_marginal.npy')),
+            "class_marginal": np.load(os.path.join(root, f'quantization/{model_name}_kmeans_{n_bins}/class_marginal.npy')),
+    }
 
     # Apply preprocessing.
     x_train, x_test = preprocess(x_train, x_test)
+    train_transform = Compose(
+        [RandomCrop(32), RandomHorizontalFlip(0.5), Cutout(8)]
+    )
+    test_transform = CenterCrop(32)
 
-    train_dataset = ImageClassificationDataset(x_train, y_train, augment=True)
+    train_dataset = ImageClassificationDataset(x_train, y_train, train_transform)
     train_dataloader = DataLoader(
         train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
     )
     print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
-    test_dataset = ImageClassificationDataset(x_test, y_test, augment=False)
+    test_dataset = ImageClassificationDataset(x_test, y_test, test_transform)
     test_dataloader = DataLoader(
         test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
     )
     print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
-    return train_dataloader, test_dataloader
-
-
-def get_quantized_cifar10_loaders(
-    batch_size, rank, n_bins=40, augment=True, root="/mnt/ssd/ronak/datasets/cifar10"
-):
-    x_train = np.load(os.path.join(root, "x_train.npy"))
-    y_train = np.load(os.path.join(root, "y_train.npy"))
-    x_test = np.load(os.path.join(root, "x_test.npy"))
-    y_test = np.load(os.path.join(root, "y_test.npy"))
-
-    cx_train = np.load(os.path.join(root, f"x_train_quantized_{n_bins}.npy"))
-    cy_train = np.load(os.path.join(root, f"y_train_quantized_{n_bins}.npy"))
-    cx_test = np.load(os.path.join(root, f"x_test_quantized_{n_bins}.npy"))
-    cy_test = np.load(os.path.join(root, f"y_test_quantized_{n_bins}.npy"))
-
-    px = np.load(os.path.join(root, "x_marginal.npy"))
-    py = np.load(os.path.join(root, "y_marginal.npy"))
-    marginals = (px, py)
-
-    # Apply preprocessing.
-    x_train, x_test = preprocess(x_train, x_test)
-
-    train_dataset = QuantizedImageClassificationDataset(
-        x_train, y_train, cx_train, cy_train, augment=augment
-    )
-    train_dataloader = DataLoader(
-        train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
-    )
-    print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
-    test_dataset = QuantizedImageClassificationDataset(
-        x_test, y_test, cx_test, cy_test, augment=False
-    )
-    test_dataloader = DataLoader(
-        test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
-    )
-    print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
-    return train_dataloader, test_dataloader, marginals
+    return train_dataloader, test_dataloader, quantization

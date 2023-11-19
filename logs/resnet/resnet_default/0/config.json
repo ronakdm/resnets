@@ -4,7 +4,8 @@
     "output_dir": "/mnt/ssd/ronak/output",
     "data_dir": "/mnt/ssd/ronak/datasets/",
     "dataset": "cifar10",
-    "n_bins": 40,
+    "n_bins": 50,
+    "augment": true,
     "model_cfg": {
         "architecture": "resnet",
         "n_layers": 5
@@ -16,10 +17,8 @@
     "batch_size": 512,
     "use_raking": false,
     "optim_cfg": {
-        "algo": "sgd",
-        "lr": 0.06,
-        "weight_decay": 5e-05,
-        "momentum": 0.9
+        "algo": "adam",
+        "lr": 0.001
     },
     "grad_accumulation_steps": 1,
     "num_raking_rounds": 2

@@ -2,7 +2,7 @@ import torch
 import argparse
 
 from src.experiment import ExperimentHelper
-from src.raking import get_raking_weights
+from src.raking import get_raking_ratio_weight
 
 # TODO: gradient clipping 
 
@@ -22,7 +22,7 @@ args = parser.parse_args()
 experiment_name, seed, device = args.experiment_name, args.seed, args.device
 
 # Option B: Use with debugger.
-# experiment_name, seed, device = "resnet_raking", 1, 0
+# experiment_name, seed, device = "resnet_raking", 0, 0
 
 # Build model.
 helper = ExperimentHelper(experiment_name, seed, device)
@@ -35,12 +35,11 @@ is_ddp_run, device, rank, world_size = (
     helper.rank,
     helper.world_size,
 )
-wd, mu = helper.optim_cfg["weight_decay"], helper.optim_cfg["momentum"]
 
 # Load data.
 accumulation_steps_per_device = helper.accumulation_steps_per_device
 batch_size = helper.effective_batch_size // (accumulation_steps_per_device * world_size)
-train_loader, val_loader, marginals = helper.get_dataloaders(batch_size, rank)
+train_loader, val_loader, quantization = helper.get_dataloaders(batch_size, rank)
 use_raking = helper.use_raking
 num_rounds = helper.num_raking_rounds
 
@@ -52,7 +51,7 @@ model.train()
 momentum = [torch.zeros(param.shape).to(device) for param in model.parameters()]
 iter_num = 0
 while iter_num < helper.max_iters * accumulation_steps_per_device:
-    for X, Y, cx, cy in train_loader:
+    for idx, X, Y in train_loader:
         iter_num += 1
         helper.log_step(iter_num, model, [train_loader, val_loader])
         if iter_num >= helper.max_iters:
@@ -64,13 +63,14 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
             )
 
         if use_raking:
-            weights = get_raking_weights(
-                X, Y, cx.numpy(), cy.numpy(), marginals, num_rounds
-            )
-            loss, logits = model(X.to(device), Y.to(device), weights.to(device))
+            sample_weight = torch.from_numpy(get_raking_ratio_weight(
+                idx, quantization, num_rounds
+            )).float().to(device=device, non_blocking=True)
+            loss, logits = model(X.to(device), Y.to(device), sample_weight=sample_weight.to(device))
         else:
             loss, logits = model(X.to(device), Y.to(device))
         loss = loss / accumulation_steps_per_device
+        loss.backward()
 
         if iter_num % accumulation_steps_per_device == 0:
             lr = helper.get_lr(iter_num)

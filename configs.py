@@ -34,10 +34,19 @@ configs = {
         "batch_size": 512,
         "grad_accumulation_steps": 1,
     },
+    "debug_raking": {"experiment_group": "debug", "use_raking": True},
     "resnet_default": {
         "experiment_group": "resnet",
     },
     "resnet_raking": {"experiment_group": "resnet", "use_raking": True},
+    "resnet_raking_rounds_4": {"experiment_group": "resnet", "use_raking": True, "num_raking_rounds": 4},
+    "resnet_raking_bins_25": {"experiment_group": "resnet", "use_raking": True, "n_bins": 25},
+    "resnet_raking_bins_100": {"experiment_group": "resnet", "use_raking": True, "n_bins": 100},
+    "resnet_raking_bins_200": {"experiment_group": "resnet", "use_raking": True, "n_bins": 200},
+    "resnet_default_batch_128": {"experiment_group": "resnet", "batch_size": 128, "eval_iters": 20, "max_iters": 6000, "eval_interval": 200},
+    "resnet_raking_batch_128": {"experiment_group": "resnet", "batch_size": 128, "use_raking": True, "eval_iters": 20, "max_iters": 6000, "eval_interval": 200},
+    "resnet_default_batch_32": {"experiment_group": "resnet", "batch_size": 32, "eval_iters": 80, "max_iters": 10000, "eval_interval": 400},
+    "resnet_raking_batch_32": {"experiment_group": "resnet", "batch_size": 32, "use_raking": True, "eval_iters": 80, "max_iters": 10000, "eval_interval": 400},
 }
 
 # maps experiment group to default settings
@@ -49,13 +58,12 @@ defaults = {
         # data
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
-        "n_bins": 40,
+        "n_bins": 50,
         "augment": True,
         # model
         "model_cfg": {
-            "architecture": "myrtle_net",
+            "architecture": "resnet",
             "n_layers": 3,
-            "residual_blocks": [0, 2],
         },
         "init_from": "scratch",
         # taining
@@ -80,7 +88,7 @@ defaults = {
         # data
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
-        "n_bins": 40,
+        "n_bins": 50,
         "augment": True,
         # model
         "model_cfg": {
@@ -95,10 +103,9 @@ defaults = {
         "batch_size": 512,
         "use_raking": False,
         "optim_cfg": {
-            "algo": "sgd",
-            "lr": 0.05,
-            "weight_decay": 5e-5,
-            "momentum": 0.9,
+            "algo": "adam",
+            "lr": 1e-3,
+            # "weight_decay": 1e-3
         },
         "grad_accumulation_steps": 1,
         "num_raking_rounds": 2,

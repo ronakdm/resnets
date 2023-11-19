@@ -15,7 +15,7 @@ from torch.optim import SGD, Adam
 
 from configs import configs, defaults
 from src.image_models import MyrtleNet, ResNet
-from src.image_data import get_quantized_cifar10_loaders
+from src.image_data import get_cifar10_loaders
 
 
 def format_time(elapsed):
@@ -130,7 +130,7 @@ class ExperimentHelper:
 
         if dataset == "cifar10":
             # return get_cifar10_loaders(batch_size, rank, root=root)
-            return get_quantized_cifar10_loaders(
+            return get_cifar10_loaders(
                 batch_size, rank, n_bins=n_bins, root=root, augment=augment
             )
         raise NotImplementedError(f"Unrecognized dataset '{dataset}'!")
@@ -268,7 +268,7 @@ class ExperimentHelper:
         out = {}
         for split, loader in zip(["train", "validation"], loaders):
             it = 0
-            for X, Y, cx, cy in loader:
+            for idx, X, Y in loader:
                 Y = Y.to(self.device)
                 loss, logits = model(X.to(self.device), Y)
                 out[f"{split}_accuracy"] = (
