@@ -1,0 +1,27 @@
+Transformer(
+  (transformer): ModuleDict(
+    (wte): Embedding(49408, 64)
+    (wpe): Embedding(77, 64)
+    (drop): Dropout(p=0.0, inplace=False)
+    (h): ModuleList(
+      (0-1): 2 x TransformerBlock(
+        (ln_1): LayerNorm()
+        (attn): SelfAttention(
+          (c_attn): Linear(in_features=64, out_features=192, bias=False)
+          (c_proj): Linear(in_features=64, out_features=64, bias=False)
+          (attn_dropout): Dropout(p=0.0, inplace=False)
+          (resid_dropout): Dropout(p=0.0, inplace=False)
+        )
+        (ln_2): LayerNorm()
+        (mlp): MLP(
+          (c_fc): Linear(in_features=64, out_features=256, bias=False)
+          (gelu): GELU(approximate='none')
+          (c_proj): Linear(in_features=256, out_features=64, bias=False)
+          (dropout): Dropout(p=0.0, inplace=False)
+        )
+      )
+    )
+    (ln_f): LayerNorm()
+  )
+  (lm_head): Linear(in_features=64, out_features=2, bias=True)
+)

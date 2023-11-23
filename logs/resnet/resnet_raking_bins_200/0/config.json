@@ -1,0 +1,22 @@
+{
+    "experiment_group": "resnet",
+    "use_raking": true,
+    "n_bins": 200,
+    "log_dir": "logs/",
+    "output_dir": "/mnt/ssd/ronak/output",
+    "data_dir": "/mnt/ssd/ronak/datasets/",
+    "dataset": "cifar10",
+    "factor": 1.0,
+    "init_from": "scratch",
+    "max_iters": 4000,
+    "eval_interval": 200,
+    "eval_iters": 200,
+    "batch_size": 128,
+    "optim_cfg": {
+        "algo": "sgd",
+        "lr": 0.001,
+        "momentum": 0.5
+    },
+    "grad_accumulation_steps": 1,
+    "num_raking_rounds": 2
+}

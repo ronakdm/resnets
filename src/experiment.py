@@ -13,9 +13,11 @@ from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam
 
-from configs import configs, defaults
+from configs import configs, defaults, model_cfgs
 from src.image_models import MyrtleNet, ResNet
-from src.image_data import get_cifar10_loaders
+from src.text_models import Transformer
+from src.image_data import get_image_dataloaders
+from src.text_data import get_text_dataloaders
 
 
 def format_time(elapsed):
@@ -124,24 +126,30 @@ class ExperimentHelper:
 
     def get_dataloaders(self, batch_size, rank):
         dataset = self.cfg["dataset"]
-        root = os.path.join(self.cfg["data_dir"], self.cfg["dataset"])
+        root = os.path.join(self.cfg["data_dir"], dataset)
         n_bins = self.cfg["n_bins"]
-        augment = self.cfg["augment"]
+        factor = self.cfg["factor"]
 
-        if dataset == "cifar10":
-            # return get_cifar10_loaders(batch_size, rank, root=root)
-            return get_cifar10_loaders(
-                batch_size, rank, n_bins=n_bins, root=root, augment=augment
+        if dataset in ["cifar10", "fashion_mnist"]:
+            return get_image_dataloaders(
+                batch_size, rank, n_bins=n_bins, root=root, factor=factor
             )
-        raise NotImplementedError(f"Unrecognized dataset '{dataset}'!")
+        elif dataset in ["sst2"]:
+            return get_text_dataloaders(
+                batch_size, rank, n_bins=n_bins, root=root, factor=factor
+            )
 
     def get_model(self):
-        model_cfg = self.cfg["model_cfg"]
+        # model_cfg = self.cfg["model_cfg"]
+        model_cfg = model_cfgs[self.cfg["dataset"]]
         arch = model_cfg["architecture"]
+        del model_cfg["architecture"]
         if arch == "myrtle_net":
             model = MyrtleNet(**model_cfg).float()
         elif arch == "resnet":
             model = ResNet(**model_cfg).float()
+        elif arch == "transformer":
+            model = Transformer(**model_cfg).float()
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 

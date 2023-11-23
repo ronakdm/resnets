@@ -1,0 +1,21 @@
+{
+    "experiment_group": "resnet",
+    "dataset": "fashion_mnist",
+    "use_raking": true,
+    "log_dir": "logs/",
+    "output_dir": "/mnt/ssd/ronak/output",
+    "data_dir": "/mnt/ssd/ronak/datasets/",
+    "n_bins": 50,
+    "factor": 1.0,
+    "init_from": "scratch",
+    "max_iters": 20000,
+    "eval_interval": 1000,
+    "eval_iters": 200,
+    "batch_size": 128,
+    "optim_cfg": {
+        "algo": "sgd",
+        "lr": 0.01
+    },
+    "grad_accumulation_steps": 1,
+    "num_raking_rounds": 2
+}

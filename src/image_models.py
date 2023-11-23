@@ -25,27 +25,6 @@ class ProjectedResidualBlock(nn.Module):
         return F.relu(x + self.bn2(self.conv2(h)), inplace=True)
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(ResidualBlock, self).__init__()
-        self.conv1 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False
-        )
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(
-            out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.shortcut = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, bias=False),
-            nn.BatchNorm2d(out_channels),
-        )
-
-    def forward(self, x):
-        h = F.relu(self.bn1(self.conv1(x)), inplace=True)
-        return F.relu(self.shortcut(x) + self.bn2(self.conv2(h)), inplace=True)
-
-
 class MyrtleResidualBlock(nn.Module):
     def __init__(self, n_channels):
         super(MyrtleResidualBlock, self).__init__()
@@ -105,7 +84,7 @@ class MyrtleNet(nn.Module):
                 block.append(MyrtleResidualBlock(64 * 2 ** (l + 1)))
             self.layers.append(nn.Sequential(*block))
             height //= 2
-            width //= 2
+            width //= 2 
 
         # Compute final number of features after pooling.
         height //= 2
@@ -125,6 +104,25 @@ class MyrtleNet(nn.Module):
             loss = F.cross_entropy(logits, y)
         return loss, logits
 
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(
+            in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False
+        )
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(
+            out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.shortcut = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2, bias=False),
+            nn.BatchNorm2d(out_channels),
+        )
+
+    def forward(self, x):
+        h = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        return F.relu(self.shortcut(x) + self.bn2(self.conv2(h)), inplace=True)
 
 class ResNet(nn.Module):
     def __init__(
@@ -149,8 +147,8 @@ class ResNet(nn.Module):
         self.layers = nn.ModuleList()
         for l in range(n_layers):
             self.layers.append(ResidualBlock(64 * 2**l, 64 * 2 ** (l + 1)))
-            height //= 2
-            width //= 2
+            height = (height + 1) // 2
+            width  = (width + 1) // 2
 
         # Compute final number of features.
         n_features = 64 * 2**n_layers * height * width
