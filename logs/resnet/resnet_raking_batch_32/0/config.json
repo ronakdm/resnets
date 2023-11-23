@@ -10,15 +10,12 @@
     "data_dir": "/mnt/ssd/ronak/datasets/",
     "dataset": "cifar10",
     "n_bins": 50,
-    "augment": true,
-    "model_cfg": {
-        "architecture": "resnet",
-        "n_layers": 5
-    },
+    "factor": 1.0,
     "init_from": "scratch",
     "optim_cfg": {
-        "algo": "adam",
-        "lr": 0.001
+        "algo": "sgd",
+        "lr": 0.001,
+        "momentum": 0.5
     },
     "grad_accumulation_steps": 1,
     "num_raking_rounds": 2
