@@ -106,7 +106,7 @@ defaults = {
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "dataset": "cifar10",
         "n_bins": 50,
-        "augment": True,
+        "factor": 1.0,
         # model
         "model_cfg": {
             "architecture": "resnet",
@@ -121,9 +121,9 @@ defaults = {
         "use_raking": False,
         "optim_cfg": {
             "algo": "sgd",
-            "lr": 0.003,
-            "weight_decay": 5e-4,
-            "momentum": 0.9,
+            "lr": 0.01,
+            "weight_decay": 0.0,
+            "momentum": 0.0,
         },
         "grad_accumulation_steps": 1,
         "num_raking_rounds": 2,

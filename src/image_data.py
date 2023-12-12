@@ -45,6 +45,7 @@ def preprocess(x_tr, x_te, border=4):
     # )
 
     # Normalize.
+    x_tr, x_te = x_tr / 255, x_te / 255
     mean, std = x_tr.mean(axis=0), x_tr.std(axis=0)
     x_tr = (x_tr - mean) / std
     x_te = (x_te - mean) / std
