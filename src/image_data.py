@@ -94,8 +94,12 @@ def get_image_dataloaders(
     x_train, x_test = preprocess(x_train, x_test)
 
     # Transpose to put channels before height and width.
-    x_train = x_train.transpose(0, 3, 1, 2)
-    x_test = x_test.transpose(0, 3, 1, 2)
+    if len(x_train.shape) == 4:
+        x_train = x_train.transpose(0, 3, 1, 2)
+        x_test = x_test.transpose(0, 3, 1, 2)
+    else:
+        x_train = np.expand_dims(x_train, axis=1)
+        x_test = np.expand_dims(x_test, axis=1)
 
     # augmentation
     # crop = x_train.shape[-1]

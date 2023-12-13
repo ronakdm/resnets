@@ -151,7 +151,7 @@ class ExperimentHelper:
             "y_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['quantization_y']}")),
         }
 
-        if self.dataset in ["cifar10", "fashion_mnist"]:
+        if self.dataset in ["cifar10", "fashion_mnist", "stl10", "cifar100", "tiny_imagenet"]:
             return get_image_dataloaders(
                 batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
@@ -304,7 +304,7 @@ class ExperimentHelper:
             denom = min(eval_iters, len(loader))
             it = 0
             for idx, X, Y in loader:
-                if it > eval_iters:
+                if it >= eval_iters:
                     break
                 Y = Y.to(self.device)
                 loss, logits = model(X.to(self.device), Y)
@@ -345,9 +345,9 @@ class ExperimentHelper:
         # estimate full batch gradient
         means = [torch.zeros(param.shape).to(device) for param in model.parameters()]
         it = 0
-        while it <= max_iters:
+        while it < max_iters:
             for idx, X, Y in loader:
-                if it > max_iters:
+                if it >= max_iters:
                     break
                 Y = Y.to(self.device)
                 with torch.enable_grad():
@@ -362,9 +362,9 @@ class ExperimentHelper:
         # estimate variance of stochastic gradients
         variance = 0
         it = 0
-        while it <= max_iters:
+        while it < max_iters:
             for idx, X, Y in loader:
-                if it > max_iters:
+                if it >= max_iters:
                     break
                 Y = Y.to(self.device)
                 with torch.enable_grad():
