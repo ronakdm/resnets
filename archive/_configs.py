@@ -212,3 +212,73 @@ defaults = {
         "num_raking_rounds": 2,
     },
 }
+
+moar_configs = {
+    "debug": {
+        # experiment
+        "experiment_group": "debug",
+    },
+    "debug_ddp": {
+        # experiment
+        "experiment_group": "debug",
+        # model
+        "model_cfg": {
+            "architecture": "myrtle_net",
+            "n_layers": 1,
+            "residual_blocks": [],
+        },
+        # taining
+        "max_iters": 200,
+        "eval_interval": 100,
+        "eval_iters": 5,
+        "batch_size": 50000,
+        "grad_accumulation_steps": 40,
+    },
+    "debug_resnet": {
+        # experiment
+        "experiment_group": "debug",
+        # model
+        "model_cfg": {
+            "architecture": "resnet",
+            "n_layers": 3,
+        },
+        # taining
+        "max_iters": 300,
+        "eval_interval": 100,
+        "eval_iters": 5,
+        "batch_size": 512,
+        "grad_accumulation_steps": 1,
+    },
+    "debug_raking": {"experiment_group": "debug", "use_raking": True},
+    "resnet_default_batch_128": {"experiment_group": "resnet"},
+    "resnet_raking_batch_128":  {"experiment_group": "resnet", "use_raking": True},
+    "resnet_raking_rounds_4": {"experiment_group": "resnet", "use_raking": True, "num_raking_rounds": 4},
+    "resnet_raking_rounds_6": {"experiment_group": "resnet", "use_raking": True, "num_raking_rounds": 6},
+    "resnet_default_factor_5": {"experiment_group": "resnet", "factor": 5.0},
+    "resnet_raking_factor_5": {"experiment_group": "resnet", "use_raking": True, "factor": 5.0},
+    "resnet_default_factor_10": {"experiment_group": "resnet", "factor": 10.0},
+    "resnet_raking_factor_10": {"experiment_group": "resnet", "use_raking": True, "factor": 10.0},
+    "resnet_raking_bins_25":  {"experiment_group": "resnet", "use_raking": True, "n_bins": 25},
+    "resnet_raking_bins_100": {"experiment_group": "resnet", "use_raking": True, "n_bins": 100},
+    "resnet_raking_bins_200": {"experiment_group": "resnet", "use_raking": True, "n_bins": 200},
+    "resnet_default_batch_512": {"experiment_group": "resnet", "batch_size": 512, "eval_iters": 20, "max_iters": 6000, "eval_interval": 200},
+    "resnet_raking_batch_512":  {"experiment_group": "resnet", "batch_size": 512, "use_raking": True, "eval_iters": 20, "max_iters": 6000, "eval_interval": 200},
+    "resnet_default_batch_32":  {"experiment_group": "resnet", "batch_size": 32, "eval_iters": 80, "max_iters": 10000, "eval_interval": 400},
+    "resnet_raking_batch_32":   {"experiment_group": "resnet", "batch_size": 32, "use_raking": True, "eval_iters": 80, "max_iters": 10000, "eval_interval": 400},
+    # fashion
+    "fmnist_default_batch_128":  {"experiment_group": "resnet", "dataset": "fashion_mnist"},
+    "fmnist_raking_batch_128":  {"experiment_group": "resnet", "dataset": "fashion_mnist", "use_raking": True},
+    "fmnist_default_factor_5":  {"experiment_group": "resnet", "dataset": "fashion_mnist", "factor": 5.0},
+    "fmnist_raking_factor_5":  {"experiment_group": "resnet", "dataset": "fashion_mnist",  "use_raking": True,  "factor": 5.0},
+    "fmnist_default_factor_10":  {"experiment_group": "resnet", "dataset": "fashion_mnist", "factor": 10.0},
+    "fmnist_raking_factor_10":  {"experiment_group": "resnet", "dataset": "fashion_mnist", "use_raking": True,  "factor": 10.0},
+    "fmnist_default_factor_100":  {"experiment_group": "resnet", "dataset": "fashion_mnist", "factor": 100.0},
+    "fmnist_raking_factor_100":  {"experiment_group": "resnet", "dataset": "fashion_mnist", "use_raking": True,  "factor": 100.0},
+    # sst2
+    "sst2_default_batch_128":  {"experiment_group": "sst2"},
+    "sst2_raking_batch_128":  {"experiment_group": "sst2", "use_raking": True},
+    "sst2_default_batch_32":  {"experiment_group": "sst2", "batch_size": 32},
+    "sst2_raking_batch_32":  {"experiment_group": "sst2", "batch_size": 32, "use_raking": True},
+    "sst2_default_factor_10":  {"experiment_group": "sst2", "batch_size": 128, "factor": 10.0},
+    "sst2_raking_factor_10":  {"experiment_group": "sst2", "batch_size": 128, "use_raking": True, "factor": 10.0},
+}

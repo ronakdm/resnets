@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import os
 
@@ -33,3 +34,17 @@ def get_raking_ratio_weight(idx, quantization, num_rounds):
     pmat = raking_ratio(cmat / len(X), marginals, num_rounds)
     prob = pmat[X, Y] / cmat[X, Y]
     return prob / np.sum(prob)
+
+def compute_loss(model, idx, X, Y, vr=None, quantization=None):
+    if not ("type" in vr):
+        loss, _ = model(X, Y)
+    elif vr["type"] == "raking":
+        device = X.get_device()
+        sample_weight = torch.from_numpy(get_raking_ratio_weight(
+            idx, quantization, vr["num_rounds"]
+        )).float().to(device=X.get_device(), non_blocking=True)
+        loss, _ = model(X, Y, sample_weight=sample_weight.to(device))
+    return loss
+
+def compute_gradients(parameters, loss, vr=None, quantization=None):
+    return torch.autograd.grad(outputs=loss, inputs=parameters)

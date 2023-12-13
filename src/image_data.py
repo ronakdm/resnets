@@ -67,32 +67,28 @@ def rebalance(y, factor):
 
 
 def get_image_dataloaders(
-    batch_size, rank, n_bins=50, factor=1.0, root="/mnt/ssd/ronak/datasets/cifar10"
+    batch_size, rank, unbalance=1.0, root="/mnt/ssd/ronak/datasets/cifar10", quantization=None,
 ):
     x_train = np.load(os.path.join(root, "x_train.npy"))
     y_train = np.load(os.path.join(root, "y_train.npy"))
     x_test  = np.load(os.path.join(root, "x_test.npy"))
     y_test  = np.load(os.path.join(root, "y_test.npy"))
 
-    model_name = 'convnext_base'
-    quantization = {
-        "x_labels":   np.load(os.path.join(root, f"quantization/{model_name}_kmeans_{n_bins}/image_labels.npy")),
-        "y_labels":   np.load(os.path.join(root, f"quantization/{model_name}_kmeans_{n_bins}/class_labels.npy")),
-    }
-
     # reindex for class imbalance
-    if factor > 1.0:
-        idx = rebalance(y_train, factor)
-        print(f"rebalancing to factor {factor}...")
+    if unbalance > 1.0:
+        idx = rebalance(y_train, unbalance)
+        print(f"rebalancing to factor {unbalance}...")
         x_train = x_train[idx]
         y_train = y_train[idx]
         print(f"train features shape {x_train.shape}")
         print(f"train labels shape {x_train.shape}")
-        quantization["x_labels"] = quantization["x_labels"][idx]
-        quantization["y_labels"] = quantization["y_labels"][idx]
+        if quantization:
+            quantization["x_labels"] = quantization["x_labels"][idx]
+            quantization["y_labels"] = quantization["y_labels"][idx]
 
-    quantization["x_marginal"] = np.unique(quantization["x_labels"], return_counts=True)[1] / len(x_train)
-    quantization["y_marginal"] = np.unique(quantization["y_labels"], return_counts=True)[1] / len(y_train)
+    if quantization:
+        quantization["x_marginal"] = np.unique(quantization["x_labels"], return_counts=True)[1] / len(x_train)
+        quantization["y_marginal"] = np.unique(quantization["y_labels"], return_counts=True)[1] / len(y_train)
 
     # Apply preprocessing.
     x_train, x_test = preprocess(x_train, x_test)

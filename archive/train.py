@@ -2,7 +2,7 @@ import torch
 import argparse
 
 from src.experiment import ExperimentHelper
-from src.raking import get_raking_ratio_weight
+from src.variance_reduction import compute_loss
 
 # TODO: gradient clipping 
 
@@ -45,7 +45,7 @@ use_raking = helper.use_raking
 num_rounds = helper.num_raking_rounds
 
 # Build optimizer.
-optimizer = helper.get_optimizer(model)
+# optimizer = helper.get_optimizer(model)
 
 # Run experiment.
 model.train()
@@ -64,20 +64,13 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
                 iter_num % accumulation_steps_per_device == 0
             )
 
-        if use_raking:
-            sample_weight = torch.from_numpy(get_raking_ratio_weight(
-                idx, quantization, num_rounds
-            )).float().to(device=device, non_blocking=True)
-            loss, logits = model(X.to(device), Y.to(device), sample_weight=sample_weight.to(device))
-        else:
-            loss, logits = model(X.to(device), Y.to(device))
-        total_loss += loss / accumulation_steps_per_device
+        loss = compute_loss
         # loss.backward()
 
         if iter_num % accumulation_steps_per_device == 0:
             lr = helper.get_lr(iter_num)
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr
+            # for param_group in optimizer.param_groups:
+            #     param_group['lr'] = lr
 
             # perform SGD update.
             # compute the gradient using automatic differentiation
@@ -97,7 +90,7 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
                             param -= lr * mom
                         else:
                             param -= lr * g
-                            
+
             # model.zero_grad()
             total_loss = 0.0
 

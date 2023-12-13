@@ -55,7 +55,7 @@ def cluster_feat(features, num_clusters,
     
     # Drop clusters with low frequency
     ids, counts = np.unique(labels, return_counts=True)
-    to_remove = ids[counts < 50]
+    to_remove = ids[counts < 0.6 * len(features) / num_clusters]
     if len(to_remove) > 0:
         index.remove_ids(to_remove)
         _, labels = index.search(data1, 1)

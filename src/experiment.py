@@ -13,11 +13,13 @@ from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam
 
-from configs import configs, defaults, model_cfgs
+from configs import configs
+from defaults import defaults
 from src.image_models import MyrtleNet, ResNet
 from src.text_models import Transformer
 from src.image_data import get_image_dataloaders
 from src.text_data import get_text_dataloaders
+from src.variance_reduction import compute_loss, compute_gradients
 
 
 def format_time(elapsed):
@@ -26,23 +28,28 @@ def format_time(elapsed):
 
 
 class ExperimentHelper:
-    def __init__(self, experiment_name, seed, device):
+    def __init__(self, dataset, experiment_name, seed, device):
         try:
-            self.cfg = configs[experiment_name]
-            default = defaults[self.cfg["experiment_group"]]
-            for key in default:
-                if key not in self.cfg:
-                    self.cfg[key] = default[key]
+            self.cfg = defaults[dataset].copy()
+            changes = configs[dataset][experiment_name]
+            for param_set in changes:
+                if not (param_set in self.cfg):
+                    self.cfg[param_set] = {}
+                for key in changes[param_set]:
+                    self.cfg[param_set][key] = changes[param_set][key]
         except KeyError:
             raise NotImplementedError(
-                f"No configuration found for '{experiment_name}' with seed '{seed}'!"
+                f"No configuration found for '{experiment_name}' in dataset '{dataset}'!"
             )
 
         # Expose what is necessary.
-        self.max_iters = self.cfg["max_iters"]
-        self.use_raking = self.cfg["use_raking"]
-        self.num_raking_rounds = self.cfg["num_raking_rounds"]
-        self.optim_cfg = self.cfg["optim_cfg"]
+        self.dataset = dataset
+        self.max_iters = self.cfg["training"]["max_iters"]
+        self.optim = self.cfg["optim"]
+
+        # TODO: This would be a section to change for other formats
+        self.variance_reduction = self.cfg['variance_reduction'] if 'variance_reduction' in self.cfg else {}
+
         (
             self.device,
             self.ddp,
@@ -52,7 +59,7 @@ class ExperimentHelper:
             self.accumulation_steps_per_device,
         ) = self._configure_ddp(device)
         self.rank = seed_offset = self.rank
-        self.effective_batch_size = self.cfg["batch_size"]
+        self.effective_batch_size = self.cfg["training"]["batch_size"]
         assert (
             self.effective_batch_size % self.accumulation_steps_per_device == 0
         ), "'grad_accumulation_steps' * 'world_size' must divide 'batch_size'"
@@ -66,12 +73,12 @@ class ExperimentHelper:
         # Create logger and logging/output directories.
         if self.is_master_process:
             save_dir = os.path.join(
-                self.cfg["experiment_group"],
+                self.dataset,
                 experiment_name,
                 str(seed),
             )
-            self.log_dir = os.path.join(self.cfg["log_dir"], save_dir)
-            self.output_dir = os.path.join(self.cfg["output_dir"], save_dir)
+            self.log_dir = os.path.join(self.cfg["training"]["log_dir"], save_dir)
+            self.output_dir = os.path.join(self.cfg["training"]["output_dir"], save_dir)
             os.makedirs(self.log_dir, exist_ok=True)
             os.makedirs(self.output_dir, exist_ok=True)
             with open(os.path.join(self.log_dir, "config.json"), "w") as outfile:
@@ -92,10 +99,19 @@ class ExperimentHelper:
     def _format_time(self, elapsed):
         elapsed_rounded = int(round((elapsed)))
         return str(datetime.timedelta(seconds=elapsed_rounded))
+    
+    # def _setup_variance_reduction(self):
+    #     if "variance_reduction" in self.cfg:
+    #         vr = self.cfg["variance_reduction"]
+    #         if vr['type'] == 'raking':
+    #             root = f"/mnt/ssd/ronak/datasets/{self.dataset}"
+    #             return vr
+    #     else:
+    #         return None
 
     def _configure_ddp(self, device):
         ddp = int(os.environ.get("RANK", -1)) != -1
-        grad_accumulation_steps = self.cfg["grad_accumulation_steps"]
+        grad_accumulation_steps = self.cfg["training"]["grad_accumulation_steps"]
         # assert (
         #     grad_accumulation_steps == 1
         # ), "Hand-coded optimizer currently does not support gradient accumulation!"
@@ -125,23 +141,28 @@ class ExperimentHelper:
         )
 
     def get_dataloaders(self, batch_size, rank):
-        dataset = self.cfg["dataset"]
-        root = os.path.join(self.cfg["data_dir"], dataset)
-        n_bins = self.cfg["n_bins"]
-        factor = self.cfg["factor"]
+        root = os.path.join(self.cfg["data"]["data_dir"], self.dataset)
+        unbalance = self.cfg["data"]["unbalance"]
+        self.variance_reduction['quantization'] = {
+            "x_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['quantization_x']}")),
+            "y_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['quantization_y']}")),
+        }
 
-        if dataset in ["cifar10", "fashion_mnist"]:
+        if self.dataset in ["cifar10", "fashion_mnist"]:
             return get_image_dataloaders(
-                batch_size, rank, n_bins=n_bins, root=root, factor=factor
+                batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
-        elif dataset in ["sst2"]:
+        elif self.dataset in ["sst2"]:
             return get_text_dataloaders(
-                batch_size, rank, n_bins=n_bins, root=root, factor=factor
+                batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
+            )
+        else:
+            raise NotImplementedError(
+                f"No dataset found in at path '{root}'!"
             )
 
     def get_model(self):
-        # model_cfg = self.cfg["model_cfg"]
-        model_cfg = model_cfgs[self.cfg["dataset"]]
+        model_cfg = self.cfg["model"]
         arch = model_cfg["architecture"]
         del model_cfg["architecture"]
         if arch == "myrtle_net":
@@ -153,7 +174,7 @@ class ExperimentHelper:
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 
-        if isinstance(self.cfg["init_from"], int):
+        if isinstance(self.cfg["training"]["init_from"], int):
             # attempt to resume from a checkpoint.
             iter_num = self.cfg["init_from"]
             model.load_state_dict(
@@ -172,7 +193,7 @@ class ExperimentHelper:
         return model
 
     def get_lr(self, it):
-        optim = self.optim_cfg
+        optim = self.optim
         # 1) linear warmup for warmup_iters steps
         learning_rate = optim["lr"]
         # warmup_iters = int(0.01 * self.max_iters)
@@ -191,25 +212,25 @@ class ExperimentHelper:
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
         return min_lr + coeff * (learning_rate - min_lr)
 
-    def get_optimizer(self, model):
-        optim_cfg = self.cfg["optim_cfg"]
-        algo = optim_cfg["algo"]
-        optimizers = {"sgd": SGD, "adam": Adam}
-        del optim_cfg["algo"]
-        try:
-            optimizer = optimizers[algo](model.parameters(), **optim_cfg)
-            # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            #     optimizer,
-            #     max_lr=optim_cfg["lr"] * 10,
-            #     final_div_factor=10,
-            #     steps_per_epoch=self.cfg["eval_interval"],
-            #     total_steps=self.max_iters,
-            #     pct_start=0.05,
-            # )
-        except KeyError:
-            raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
-        # return optimizer, scheduler
-        return optimizer
+    # def get_optimizer(self, model):
+    #     optim_cfg = self.cfg["optim_cfg"]
+    #     algo = optim_cfg["algo"]
+    #     optimizers = {"sgd": SGD, "adam": Adam}
+    #     del optim_cfg["algo"]
+    #     try:
+    #         optimizer = optimizers[algo](model.parameters(), **optim_cfg)
+    #         # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #         #     optimizer,
+    #         #     max_lr=optim_cfg["lr"] * 10,
+    #         #     final_div_factor=10,
+    #         #     steps_per_epoch=self.cfg["eval_interval"],
+    #         #     total_steps=self.max_iters,
+    #         #     pct_start=0.05,
+    #         # )
+    #     except KeyError:
+    #         raise NotImplementedError(f"Unrecognized optimization algorithm '{algo}'!")
+    #     # return optimizer, scheduler
+    #     return optimizer
 
     def log_step(self, macro_iter_num, model, loaders):
         if (
@@ -217,16 +238,16 @@ class ExperimentHelper:
             and macro_iter_num % self.accumulation_steps_per_device == 0
         ):
             iter_num = macro_iter_num // self.accumulation_steps_per_device
-            if iter_num % self.cfg["eval_interval"] == 0:
+            if iter_num % self.cfg["training"]["eval_interval"] == 0:
                 if not iter_num == 0:
                     print()
                     logging.info(
-                        f"Steps {iter_num - self.cfg['eval_interval']:>5,} to {iter_num:>5,} took: {self._format_time(time.time() - self.t0)}."
+                        f"Steps {iter_num - self.cfg['training']['eval_interval']:>5,} to {iter_num:>5,} took: {self._format_time(time.time() - self.t0)}."
                     )
                     print()
 
                     logging.info(
-                        f"Evaluating using {self.cfg['eval_iters']} batches..."
+                        f"Evaluating using {self.cfg['training']['eval_iters']} batches..."
                     )
                     self.t0 = time.time()
                     # Compute evaluation metrics.
@@ -261,7 +282,7 @@ class ExperimentHelper:
                 # Reset timer.
                 self.t0 = time.time()
 
-            elif iter_num % (self.cfg["eval_interval"] // 5) == 0 and not iter_num == 0:
+            elif iter_num % (self.cfg["training"]["eval_interval"] // 5) == 0 and not iter_num == 0:
                 elapsed = format_time(time.time() - self.t0)
                 logging.info(
                     f"    step {iter_num:>5,} / {self.max_iters:>5,}.    elapsed: {elapsed}."
@@ -272,7 +293,7 @@ class ExperimentHelper:
         # TODO: Make this work beyond image classification.
         out = {"iter_num": iter_num}
         model.eval()
-        eval_iters = self.cfg["eval_iters"]
+        eval_iters = self.cfg['training']["eval_iters"]
         out = {}
         for split, loader in zip(["train", "validation"], loaders):
             it = 0
@@ -286,8 +307,48 @@ class ExperimentHelper:
                 it += 1
                 if it > eval_iters:
                     break
+        if self.cfg['training']['track_variance']:
+            out["validation_variance"] = self._compute_variance(model, loaders[1])
         model.train()
         return out
+    
+    @torch.no_grad
+    def _compute_variance(self, model, loader, max_iters=500):
+        device = self.device
+        vr = self.variance_reduction
+        quantization = vr['quantization']
+
+        # estimate full batch gradient
+        means = [torch.zeros(param.shape).to(device) for param in model.parameters()]
+        it = 0
+        while it <= max_iters:
+            for idx, X, Y in loader:
+                if it > max_iters:
+                    break
+                Y = Y.to(self.device)
+                with torch.enable_grad():
+                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr, quantization=quantization)
+                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr, quantization=quantization)
+                for mean, grad in zip(means, gradients):
+                    mean += grad / max_iters
+                it += 1
+        
+        # estimate variance of stochastic gradients
+        variance = 0
+        it = 0
+        while it <= max_iters:
+            for idx, X, Y in loader:
+                if it > max_iters:
+                    break
+                Y = Y.to(self.device)
+                with torch.enable_grad():
+                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr, quantization=quantization)
+                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr, quantization=quantization)
+                for mean, grad in zip(means, gradients):
+                    variance += torch.norm(grad - mean) ** 2 / max_iters
+                it += 1
+
+        return variance.item()
 
     def end_experiment(self):
         if self.is_master_process:
