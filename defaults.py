@@ -28,7 +28,8 @@ defaults = {
             "eval_iters": 400,
             "batch_size": 128,
             "grad_accumulation_steps": 1,
-            "track_variance": True
+            "track_variance": True,
+            "resample": False,
         }
     },
     "fashion_mnist": {
@@ -60,6 +61,8 @@ defaults = {
             "eval_iters": 200,
             "batch_size": 128,
             "grad_accumulation_steps": 1,
+            "track_variance": True,
+            "resample": False,
         }
     },
     "sst2": {
@@ -74,7 +77,7 @@ defaults = {
             "n_layer": 2,
             "n_head": 8,
             "n_embd": 64,
-            "n_class": 2,
+            "n_classes": 2,
             "dropout": 0.0,
             "bias": False,
         },
@@ -93,6 +96,8 @@ defaults = {
             "eval_iters": 100,
             "batch_size": 128,
             "grad_accumulation_steps": 1,
+            "track_variance": True,
+            "resample": False,
         }
     },
 }

@@ -13,6 +13,8 @@ from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import SGD, Adam
 
+from sklearn.metrics import classification_report
+
 from configs import configs
 from defaults import defaults
 from src.image_models import MyrtleNet, ResNet
@@ -49,6 +51,7 @@ class ExperimentHelper:
 
         # TODO: This would be a section to change for other formats
         self.variance_reduction = self.cfg['variance_reduction'] if 'variance_reduction' in self.cfg else {}
+        self.variance_reduction['resample'] = self.cfg['training']['resample']
 
         (
             self.device,
@@ -296,19 +299,40 @@ class ExperimentHelper:
         eval_iters = self.cfg['training']["eval_iters"]
         out = {}
         for split, loader in zip(["train", "validation"], loaders):
+            for metric in ["loss", "accuracy", "avg_precision", "min_precision", "avg_recall", "min_recall"]:
+                out[f"{split}_{metric}"] = 0.0
+            denom = min(eval_iters, len(loader))
             it = 0
             for idx, X, Y in loader:
-                Y = Y.to(self.device)
-                loss, logits = model(X.to(self.device), Y)
-                out[f"{split}_accuracy"] = (
-                    torch.sum((torch.argmax(logits, dim=1) == Y)) / len(Y)
-                ).item()
-                out[f"{split}_loss"] = loss.item()
-                it += 1
                 if it > eval_iters:
                     break
+                Y = Y.to(self.device)
+                loss, logits = model(X.to(self.device), Y)
+
+                # accuracy
+                Y_pred = torch.argmax(logits, dim=1)
+                out[f"{split}_accuracy"] += (
+                    torch.sum((Y_pred == Y)) / len(Y)
+                ).item() / denom
+
+                # precision and recall
+                report = classification_report(Y.cpu(), Y_pred.cpu(), zero_division=0.0, output_dict=True)
+                labels = []
+                for key in list(report.keys()):
+                    if key not in ['accuracy', 'marco avg', 'weighted avg']:
+                        labels.append(key)
+                precision = np.array([report[label]['precision'] for label in labels])
+                recall = np.array([report[label]['recall'] for label in labels])
+                out[f"{split}_avg_precision"] += precision.mean() / denom
+                out[f"{split}_min_precision"] += precision.min() / denom
+                out[f"{split}_avg_recall"] += recall.mean() / denom
+                out[f"{split}_min_recall"] += recall.min() / denom
+
+                out[f"{split}_loss"] += loss.item() / denom
+                it += 1
         if self.cfg['training']['track_variance']:
-            out["validation_variance"] = self._compute_variance(model, loaders[1])
+            for split, loader in zip(["train", "validation"], loaders):
+                out[f"{split}_variance"] = self._compute_variance(model, loader)
         model.train()
         return out
     
@@ -327,10 +351,12 @@ class ExperimentHelper:
                     break
                 Y = Y.to(self.device)
                 with torch.enable_grad():
-                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr, quantization=quantization)
-                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr, quantization=quantization)
+                    model.zero_grad()
+                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
+                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
                 for mean, grad in zip(means, gradients):
                     mean += grad / max_iters
+                model.zero_grad()
                 it += 1
         
         # estimate variance of stochastic gradients
@@ -342,13 +368,31 @@ class ExperimentHelper:
                     break
                 Y = Y.to(self.device)
                 with torch.enable_grad():
-                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr, quantization=quantization)
-                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr, quantization=quantization)
+                    model.zero_grad()
+                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
+                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
                 for mean, grad in zip(means, gradients):
                     variance += torch.norm(grad - mean) ** 2 / max_iters
                 it += 1
 
         return variance.item()
+    
+    def resample(self, idx, x, y):
+        nlabels = self.cfg['model']['n_classes']
+        batch_size = self.cfg['training']['batch_size']
+
+        size = int(batch_size / nlabels)
+        remain = batch_size - size * nlabels
+        ind = []
+        for label in range(nlabels):
+            _size = size
+            if remain > 0:
+                _size += 1
+                remain -= 1
+            candidate = (y == label).nonzero(as_tuple=True)[0]
+            if len(candidate) > 0:
+                ind += list(candidate[torch.multinomial(torch.ones(len(candidate)), _size, replacement=True)])
+        return idx[ind], x[ind], y[ind]
 
     def end_experiment(self):
         if self.is_master_process:

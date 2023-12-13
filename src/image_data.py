@@ -108,12 +108,12 @@ def get_image_dataloaders(
 
     train_dataset = ImageClassificationDataset(x_train, y_train)
     train_dataloader = DataLoader(
-        train_dataset, sampler=RandomSampler(train_dataset), batch_size=batch_size
+        train_dataset, shuffle=True, batch_size=batch_size
     )
     print(f"{len(train_dataset):>5,} training samples on rank {rank}.")
     test_dataset = ImageClassificationDataset(x_test, y_test)
     test_dataloader = DataLoader(
-        test_dataset, sampler=RandomSampler(test_dataset), batch_size=batch_size
+        test_dataset, shuffle=True, batch_size=batch_size
     )
     print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
     return train_dataloader, test_dataloader, quantization

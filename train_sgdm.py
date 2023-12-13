@@ -28,7 +28,7 @@ args = parser.parse_args()
 dataset, experiment_name, seed, device = args.dataset, args.experiment_name, args.seed, args.device
 
 # Option B: Use with debugger.
-# dataset, experiment_name, seed, device = "cifar10", "default", 0, "cuda:0"
+# dataset, experiment_name, seed, device = "cifar10", "debug", 0, "cuda:0"
 
 # Build model.
 helper = ExperimentHelper(dataset, experiment_name, seed, device)
@@ -70,13 +70,16 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
                 iter_num % accumulation_steps_per_device == 0
             )
 
-        loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr, quantization=quantization)
+        if vr['resample']:
+            idx, X, Y = helper.resample(idx, X, Y)
+
+        loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
         total_loss += loss / accumulation_steps_per_device
 
         if iter_num % accumulation_steps_per_device == 0:
             # compute the gradient using autodiff
             parameters = list(model.parameters())
-            gradients = compute_gradients(parameters, loss, vr=vr, quantization=quantization)
+            gradients = compute_gradients(parameters, loss, vr=vr)
             if iter_num % accumulation_steps_per_device == 0:
                 lr = helper.get_lr(iter_num)
                 with torch.no_grad():

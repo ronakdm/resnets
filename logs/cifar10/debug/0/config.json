@@ -1,20 +1,20 @@
 {
     "data": {
         "data_dir": "/mnt/ssd/ronak/datasets/",
-        "unbalance": 1.0,
+        "unbalance": 10,
         "quantization_x": "convnext_base_kmeans_50/class_labels.npy",
         "quantization_y": "convnext_base_kmeans_50/class_labels.npy"
     },
     "model": {
         "architecture": "resnet",
-        "n_layers": 3,
+        "n_layers": 2,
         "n_classes": 10,
         "height": 32,
         "width": 32
     },
     "optim": {
         "algo": "sgd",
-        "lr": 0.001,
+        "lr": 0.01,
         "momentum": 0.0,
         "weight_decay": 0.0
     },
@@ -25,7 +25,14 @@
         "max_iters": 300,
         "eval_interval": 100,
         "eval_iters": 5,
-        "batch_size": 512,
-        "grad_accumulation_steps": 1
+        "batch_size": 128,
+        "grad_accumulation_steps": 1,
+        "track_variance": true,
+        "resample": true
+    },
+    "variance_reduction": {
+        "type": "raking",
+        "num_rounds": 2,
+        "resample": true
     }
 }
