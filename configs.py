@@ -124,6 +124,15 @@ configs = {
             },
         },
     },
+    "ub_fmnist": {
+        "default_b256": {},
+        "raking_r2_k50_b256": {
+            "variance_reduction": {
+                "type": "raking",
+                "num_rounds": 2,
+            },
+        }
+    },
     "sst2": {},
 }
 

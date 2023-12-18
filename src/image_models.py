@@ -166,3 +166,30 @@ class ResNet(nn.Module):
             else:
                 loss = F.cross_entropy(logits, y)
         return loss, logits
+
+
+# Used for unbalanced Fashion MNIST dataset from LL's code.
+class ConvNet(nn.Module):
+    def __init__(self, hidden_dim=512, n_classes=10):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=5, padding=2)
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=5, padding=2)
+        self.fc1 = nn.Linear(64*3*3, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, n_classes)
+
+    def forward(self, x, y=None, sample_weight=None):
+        x = F.max_pool2d(F.relu(self.conv1(x)), 2)  # conv1
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2)  # conv2
+        x = F.max_pool2d(F.relu(self.conv3(x)), 2) # conv3 
+        x = x.view(x.shape[0], -1) # flatten
+        features = self.fc1(x)
+        x = F.relu(features)
+        logits = self.fc2(x)
+        loss = None
+        if not (y is None):
+            if not (sample_weight is None):
+                loss = torch.dot(sample_weight, F.cross_entropy(logits, y, reduction="none"))
+            else:
+                loss = F.cross_entropy(logits, y)
+        return loss, logits

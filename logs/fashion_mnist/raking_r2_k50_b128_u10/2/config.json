@@ -2,7 +2,7 @@
     "data": {
         "data_dir": "/mnt/ssd/ronak/datasets/",
         "unbalance": 10,
-        "quantization_x": "convnext_base_kmeans_50/class_labels.npy",
+        "quantization_x": "convnext_base_kmeans_50/image_labels.npy",
         "quantization_y": "convnext_base_kmeans_50/class_labels.npy"
     },
     "model": {

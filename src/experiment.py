@@ -17,7 +17,7 @@ from sklearn.metrics import classification_report
 
 from configs import configs
 from defaults import defaults
-from src.image_models import MyrtleNet, ResNet
+from src.image_models import MyrtleNet, ResNet, ConvNet
 from src.text_models import Transformer
 from src.image_data import get_image_dataloaders
 from src.text_data import get_text_dataloaders
@@ -151,7 +151,7 @@ class ExperimentHelper:
             "y_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['quantization_y']}")),
         }
 
-        if self.dataset in ["cifar10", "fashion_mnist", "stl10", "cifar100", "tiny_imagenet"]:
+        if self.dataset in ["cifar10", "fashion_mnist", "stl10", "cifar100", "tiny_imagenet", "ub_fmnist"]:
             return get_image_dataloaders(
                 batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
@@ -172,6 +172,8 @@ class ExperimentHelper:
             model = MyrtleNet(**model_cfg).float()
         elif arch == "resnet":
             model = ResNet(**model_cfg).float()
+        elif arch == "convnet":
+            model = ConvNet(**model_cfg).float()
         elif arch == "transformer":
             model = Transformer(**model_cfg).float()
         else:
@@ -352,8 +354,9 @@ class ExperimentHelper:
                 Y = Y.to(self.device)
                 with torch.enable_grad():
                     model.zero_grad()
-                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
-                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
+                    # no variance reduction, as we will take enough batches to compute the full quantity
+                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr={})
+                    gradients = compute_gradients(list(model.parameters()), loss, vr={})
                 for mean, grad in zip(means, gradients):
                     mean += grad / max_iters
                 model.zero_grad()
