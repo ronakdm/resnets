@@ -1,0 +1,14 @@
+{
+    "train_loss": 0.014619788547095494,
+    "train_accuracy": 0.9974643640350891,
+    "train_avg_precision": 0.9915690668154995,
+    "train_min_precision": 0.927104660659849,
+    "train_avg_recall": 0.9880664130292829,
+    "train_min_recall": 0.8927384506331881,
+    "validation_loss": 0.6313112705945969,
+    "validation_accuracy": 0.8460937500000002,
+    "validation_avg_precision": 0.8512248339420083,
+    "validation_min_precision": 0.6369405507697391,
+    "validation_avg_recall": 0.8462235084243721,
+    "validation_min_recall": 0.40733804555264075
+}

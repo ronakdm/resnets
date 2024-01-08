@@ -41,7 +41,7 @@ class ExperimentHelper:
                     self.cfg[param_set][key] = changes[param_set][key]
         except KeyError:
             raise NotImplementedError(
-                f"No configuration found for '{experiment_name}' in dataset '{dataset}'!"
+                f"No configuration found for '{experiment_name}' in dataset '{dataset}' in configs.py!"
             )
 
         # Expose what is necessary.
@@ -87,7 +87,7 @@ class ExperimentHelper:
             with open(os.path.join(self.log_dir, "config.json"), "w") as outfile:
                 json.dump(self.cfg, outfile, indent=4)
             logging.basicConfig(
-                level=logging.DEBUG,
+                level=logging.INFO,
                 format="%(asctime)s [%(levelname)s] %(message)s",
                 handlers=[
                     logging.FileHandler(os.path.join(self.log_dir, "output.log")),
@@ -147,8 +147,10 @@ class ExperimentHelper:
         root = os.path.join(self.cfg["data"]["data_dir"], self.dataset)
         unbalance = self.cfg["data"]["unbalance"]
         self.variance_reduction['quantization'] = {
-            "x_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['quantization_x']}")),
-            "y_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['quantization_y']}")),
+            "x_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['x_labels']}")),
+            "y_labels":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['y_labels']}")),
+            "x_marginal":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['x_marginal']}")),
+            "y_marginal":   np.load(os.path.join(root, f"quantization/{self.cfg['data']['y_marginal']}")),
         }
 
         if self.dataset in ["cifar10", "fashion_mnist", "stl10", "cifar100", "tiny_imagenet", "ub_fmnist"]:
@@ -197,25 +199,30 @@ class ExperimentHelper:
 
         return model
 
-    def get_lr(self, it):
+    def get_lr(self, it):        
         optim = self.optim
-        # 1) linear warmup for warmup_iters steps
-        learning_rate = optim["lr"]
-        # warmup_iters = int(0.01 * self.max_iters)
-        warmup_iters = 0.0
-        lr_decay_iters = self.max_iters
-        min_lr = learning_rate / 10
+        if optim['cosine_decay']:
+            # 1) linear warmup for warmup_iters steps
+            learning_rate = optim["lr"]
+            # warmup_iters = int(0.01 * self.max_iters)
+            warmup_iters = 0.0
+            lr_decay_iters = self.max_iters
+            min_lr = learning_rate / 10
 
-        if it < warmup_iters:
-            return learning_rate * it / warmup_iters
-        # 2) if it > lr_decay_iters, return min learning rate
-        if it > lr_decay_iters:
-            return min_lr
-        # 3) in between, use cosine decay down to min learning rate
-        decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
-        assert 0 <= decay_ratio <= 1
-        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
-        return min_lr + coeff * (learning_rate - min_lr)
+            if it < warmup_iters:
+                return learning_rate * it / warmup_iters
+            # 2) if it > lr_decay_iters, return min learning rate
+            if it > lr_decay_iters:
+                return min_lr
+            # 3) in between, use cosine decay down to min learning rate
+            decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+            assert 0 <= decay_ratio <= 1
+            coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
+            return min_lr + coeff * (learning_rate - min_lr)
+        else:
+            # decay every 50 epochs
+            factor = 10 ** ((it * 256 / 14400) // 50)
+            return optim["lr"] / factor
 
     # def get_optimizer(self, model):
     #     optim_cfg = self.cfg["optim_cfg"]
@@ -342,7 +349,6 @@ class ExperimentHelper:
     def _compute_variance(self, model, loader, max_iters=500):
         device = self.device
         vr = self.variance_reduction
-        quantization = vr['quantization']
 
         # estimate full batch gradient
         means = [torch.zeros(param.shape).to(device) for param in model.parameters()]

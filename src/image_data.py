@@ -42,13 +42,15 @@ def preprocess(x_tr, x_te, border=4):
     # )
     # x_te = np.pad(
     #     x_te, [(0, 0), (border, border), (border, border), (0, 0)], mode="reflect"
-    # )
+    # )    
 
-    # Normalize.
+    # TODO: Previously, this was element-wise normalization, but now is full dataset wise.
     x_tr, x_te = x_tr / 255, x_te / 255
-    mean, std = x_tr.mean(axis=0), x_tr.std(axis=0)
-    x_tr = (x_tr - mean) / std
-    x_te = (x_te - mean) / std
+    # mean, std = x_tr.mean(axis=0), x_tr.std(axis=0)
+    # mean = x_tr.mean().item()
+    # std = x_te.std().item()
+    # x_tr = (x_tr - mean) / std
+    # x_te = (x_te - mean) / std
 
     return x_tr, x_te
 
@@ -75,20 +77,20 @@ def get_image_dataloaders(
     y_test  = np.load(os.path.join(root, "y_test.npy"))
 
     # reindex for class imbalance
-    if unbalance > 1.0:
-        idx = rebalance(y_train, unbalance)
-        print(f"rebalancing to factor {unbalance}...")
-        x_train = x_train[idx]
-        y_train = y_train[idx]
-        print(f"train features shape {x_train.shape}")
-        print(f"train labels shape {x_train.shape}")
-        if quantization:
-            quantization["x_labels"] = quantization["x_labels"][idx]
-            quantization["y_labels"] = quantization["y_labels"][idx]
+    # if unbalance > 1.0:
+    #     idx = rebalance(y_train, unbalance)
+    #     print(f"rebalancing to factor {unbalance}...")
+    #     x_train = x_train[idx]
+    #     y_train = y_train[idx]
+    #     print(f"train features shape {x_train.shape}")
+    #     print(f"train labels shape {x_train.shape}")
+    #     if quantization:
+    #         quantization["x_labels"] = quantization["x_labels"][idx]
+    #         quantization["y_labels"] = quantization["y_labels"][idx]
 
-    if quantization:
-        quantization["x_marginal"] = np.unique(quantization["x_labels"], return_counts=True)[1] / len(x_train)
-        quantization["y_marginal"] = np.unique(quantization["y_labels"], return_counts=True)[1] / len(y_train)
+    # if quantization:
+    #     quantization["x_marginal"] = np.unique(quantization["x_labels"], return_counts=True)[1] / len(x_train)
+    #     quantization["y_marginal"] = np.unique(quantization["y_labels"], return_counts=True)[1] / len(y_train)
 
     # Apply preprocessing.
     x_train, x_test = preprocess(x_train, x_test)

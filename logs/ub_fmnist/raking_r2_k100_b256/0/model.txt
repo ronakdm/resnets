@@ -1,0 +1,7 @@
+ConvNet(
+  (conv1): Conv2d(1, 32, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2))
+  (conv2): Conv2d(32, 64, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2))
+  (conv3): Conv2d(64, 64, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2))
+  (fc1): Linear(in_features=576, out_features=512, bias=True)
+  (fc2): Linear(in_features=512, out_features=10, bias=True)
+)

@@ -28,7 +28,7 @@ args = parser.parse_args()
 dataset, experiment_name, seed, device = args.dataset, args.experiment_name, args.seed, args.device
 
 # Option B: Use with debugger.
-# dataset, experiment_name, seed, device = "ub_fmnist", "raking_r2_k50_b256", 0, "cuda:0"
+# dataset, experiment_name, seed, device = "ub_fmnist", "raking_r1_k100_b256", 0, "cuda:0"
 
 # Build model.
 helper = ExperimentHelper(dataset, experiment_name, seed, device)
@@ -58,6 +58,7 @@ else:
     momentum = [None for param in model.parameters()]
 iter_num = 0
 total_loss = 0.0
+torch.manual_seed(0)
 while iter_num < helper.max_iters * accumulation_steps_per_device:
     for idx, X, Y in train_loader:
         iter_num += 1
@@ -86,7 +87,7 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
                     for param, g, mom in zip(parameters, gradients, momentum):
                         # weight decay update
                         if wd:
-                            param *= 1 - wd
+                            param *= 1 - wd * lr
                         # momentum update
                         if mu:
                             mom *= mu

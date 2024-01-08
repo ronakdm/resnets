@@ -6,7 +6,7 @@ import os
 class TokenizedTextClassificationDataset(Dataset):
     def __init__(self, x, y):
         self.x = torch.tensor(x).long()
-        self.y = torch.tensor(y).long()
+        self.y = torch.tensor(y).float()
         self.n = len(self.x)
 
     def __len__(self):

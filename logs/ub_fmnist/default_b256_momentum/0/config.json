@@ -1,0 +1,33 @@
+{
+    "data": {
+        "data_dir": "/mnt/ssd/ronak/datasets/",
+        "unbalance": 1.0,
+        "x_labels": "convmnist_e24_kmeans_100/image_labels.npy",
+        "y_labels": "convmnist_e24_kmeans_100/class_labels.npy",
+        "x_marginal": "convmnist_e24_kmeans_100/image_marginal.npy",
+        "y_marginal": "convmnist_e24_kmeans_100/class_marginal.npy"
+    },
+    "model": {
+        "architecture": "convnet",
+        "n_classes": 10
+    },
+    "optim": {
+        "algo": "sgd",
+        "lr": 0.01,
+        "momentum": 0.9,
+        "weight_decay": 0.0,
+        "cosine_decay": false
+    },
+    "training": {
+        "log_dir": "logs/",
+        "output_dir": "/mnt/ssd/ronak/output",
+        "init_from": "scratch",
+        "max_iters": 5600,
+        "eval_interval": 56,
+        "eval_iters": 200,
+        "batch_size": 256,
+        "grad_accumulation_steps": 1,
+        "track_variance": false,
+        "resample": false
+    }
+}

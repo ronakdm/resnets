@@ -18,6 +18,7 @@ defaults = {
             "lr": 1e-2,
             "momentum": 0.0,
             "weight_decay": 0.0,
+            "cosine_decay": False,
         },
         "training": {
             "log_dir": "logs/",
@@ -52,6 +53,7 @@ defaults = {
             "lr": 1e-2,
             "momentum": 0.0,
             "weight_decay": 0.0,
+            "cosine_decay": False,
         },
         "training": {
             "log_dir": "logs/",
@@ -87,6 +89,7 @@ defaults = {
             "lr": 1e-3,
             "momentum": 0.0,
             "weight_decay": 0.0,
+            "cosine_decay": False,
         },
         "training": {
             "log_dir": "logs/",
@@ -105,8 +108,10 @@ defaults = {
         "data": {
             "data_dir": "/mnt/ssd/ronak/datasets/",
             "unbalance": 1.0,
-            "quantization_x": "convmnist_e24_kmeans_50/image_labels.npy",
-            "quantization_y": "convmnist_e24_kmeans_50/class_labels.npy",
+            "x_labels": "convmnist_e24_kmeans_100/image_labels.npy",
+            "y_labels": "convmnist_e24_kmeans_100/class_labels.npy",
+            "x_marginal": "convmnist_e24_kmeans_100/image_marginal.npy",
+            "y_marginal": "convmnist_e24_kmeans_100/class_marginal.npy",
         },
         "model": {
             "architecture": "convnet",
@@ -117,18 +122,19 @@ defaults = {
             "lr": 1e-2,
             "momentum": 0.0,
             "weight_decay": 0.0,
+            "cosine_decay": False,
         },
         "training": {
             "log_dir": "logs/",
             "output_dir": "/mnt/ssd/ronak/output",
             "init_from": "scratch",
-            "max_iters": 6000,
-            "eval_interval": 400,
+            "max_iters": 5600,
+            "eval_interval": 56,
             "eval_iters": 200,
             "batch_size": 256,
             "grad_accumulation_steps": 1,
             "track_variance": True,
-            "resample": True,
+            "resample": False,
         }
     }
 }

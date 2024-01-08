@@ -26,12 +26,12 @@ def raking_ratio(pmat, marginals, num_iter):
     return pmat
 
 
-def get_raking_ratio_weight(idx, quantization, num_rounds, resample=False):
-    if resample:
+def get_raking_ratio_weight(idx, quantization, num_rounds, use_y_marginal=False):
+    if use_y_marginal:
+        marginals = (quantization["x_marginal"], quantization["y_marginal"])
+    else:
         nlabels =  len(quantization["y_marginal"])
         marginals = (quantization["x_marginal"], np.ones(nlabels) / nlabels)
-    else:
-        marginals = (quantization["x_marginal"], quantization["y_marginal"])
     X = quantization["x_labels"][idx]
     Y = quantization["y_labels"][idx]
     X, Y, cmat, marginals = count_freq(X, Y, marginals)
@@ -46,7 +46,7 @@ def compute_loss(model, idx, X, Y, vr=None):
         quantization = vr["quantization"]
         device = X.get_device()
         sample_weight = torch.from_numpy(get_raking_ratio_weight(
-            idx, quantization, vr["num_rounds"], resample=vr['resample']
+            idx, quantization, vr["num_rounds"], use_y_marginal=vr['use_y_marginal']
         )).float().to(device=X.get_device(), non_blocking=True)
         loss, _ = model(X, Y, sample_weight=sample_weight.to(device))
     return loss
