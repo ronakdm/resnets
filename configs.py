@@ -127,11 +127,7 @@ configs = {
     "ub_fmnist": {
         "debug": {},
         # LL settings (default)
-        "default_b256": {
-            "training": {
-                "track_variance": False,
-            }
-        },
+        "default_b256": {},
         # LL settings (raking)
         "raking_r1_k100_b256": {
             "variance_reduction": {
@@ -139,9 +135,6 @@ configs = {
                 "num_rounds": 1,
                 "use_y_marginal": False,
             },
-            "training": {
-                "track_variance": False,
-            }
         },
         # 2 raking iterations
         "raking_r2_k100_b256": {
@@ -227,7 +220,7 @@ configs = {
                 "track_variance": False,
             },
             "optim": {
-                "momentum": 0.9,
+                "momentum": 0.5,
             },
         },
         # momentum (raking)
@@ -241,7 +234,7 @@ configs = {
                 "track_variance": False,
             },
             "optim": {
-                "momentum": 0.9,
+                "momentum": 0.5,
             },
         },
         # weight decay (default)
@@ -313,6 +306,25 @@ configs = {
                 "use_y_marginal": False,
             },
             "training": {
+                "track_variance": False,
+            },
+        },
+        # small batch size (default)
+        "default_b64": {
+            "training": {
+                "batch_size": 64,
+                "track_variance": False,
+            },
+        },
+        # small batch size (raking)
+        "raking_r1_k100_b64": {
+            "variance_reduction": {
+                "type": "raking",
+                "num_rounds": 1,
+                "use_y_marginal": False,
+            },
+            "training": {
+                "batch_size": 64,
                 "track_variance": False,
             },
         },

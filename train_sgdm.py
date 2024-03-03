@@ -51,7 +51,6 @@ vr['quantization'] = quantization
 
 # Run experiment.
 model.train()
-# TODO: find a more elegant way to hide optimizer.
 if mu:
     momentum = [torch.zeros(param.shape).to(device) for param in model.parameters()]
 else:
@@ -74,11 +73,12 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
         if vr['resample']:
             idx, X, Y = helper.resample(idx, X, Y)
 
+        # compute loss, potentially using variance reduction
         loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
         total_loss += loss / accumulation_steps_per_device
 
         if iter_num % accumulation_steps_per_device == 0:
-            # compute the gradient using autodiff
+            # compute gradient, potentially using variance reduction
             parameters = list(model.parameters())
             gradients = compute_gradients(parameters, loss, vr=vr)
             if iter_num % accumulation_steps_per_device == 0:

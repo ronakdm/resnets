@@ -14,7 +14,7 @@
     "optim": {
         "algo": "sgd",
         "lr": 0.01,
-        "momentum": 0.9,
+        "momentum": 0.5,
         "weight_decay": 0.0,
         "cosine_decay": false
     },
@@ -33,6 +33,7 @@
     "variance_reduction": {
         "type": "raking",
         "num_rounds": 1,
+        "use_y_marginal": false,
         "resample": false
     }
 }

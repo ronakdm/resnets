@@ -15,7 +15,8 @@
         "algo": "sgd",
         "lr": 0.01,
         "momentum": 0.0,
-        "weight_decay": 0.0
+        "weight_decay": 0.0,
+        "cosine_decay": false
     },
     "training": {
         "log_dir": "logs/",
@@ -26,12 +27,13 @@
         "eval_iters": 200,
         "batch_size": 256,
         "grad_accumulation_steps": 1,
-        "track_variance": false,
+        "track_variance": true,
         "resample": false
     },
     "variance_reduction": {
         "type": "raking",
         "num_rounds": 1,
+        "use_y_marginal": false,
         "resample": false
     }
 }
