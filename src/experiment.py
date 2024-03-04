@@ -355,7 +355,6 @@ class ExperimentHelper:
             if it >= eval_iters:
                 break
             loss, logits = model(X.to(self.device), Y.to(self.device))
-
             out[f"{split}_loss"] += loss.item() / denom
             it += 1
     

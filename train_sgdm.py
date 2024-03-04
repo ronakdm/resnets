@@ -70,9 +70,6 @@ while iter_num < helper.max_iters * accumulation_steps_per_device:
                 iter_num % accumulation_steps_per_device == 0
             )
 
-        if vr['resample']:
-            idx, X, Y = helper.resample(idx, X, Y)
-
         # compute loss, potentially using variance reduction
         loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
         total_loss += loss / accumulation_steps_per_device

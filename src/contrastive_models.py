@@ -27,7 +27,6 @@ class MiniCLIP(nn.Module):
         self.text_encoder  = MLP(in_features, hidden_size, out_features, n_layers)
         self.logit_scale = torch.nn.Parameter(0.1 * torch.randn(1))
 
-    # TODO: Handle y=None in setup
     def forward(self, x, y, sample_weight=None):
 
         # extract feature representations of each modality

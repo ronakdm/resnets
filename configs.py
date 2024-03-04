@@ -330,6 +330,9 @@ configs = {
         },
     },
     "sst2": {},
+    "imagenet_captions_50k": {
+        "default": {},
+    },
 }
 
 
