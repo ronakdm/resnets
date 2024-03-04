@@ -12,7 +12,7 @@ parser.add_argument(
     "--dataset",
     type=str,
     required=True,
-    help="which dataset to run on",
+    help="which dataset to run on, should be keys of dictionary in 'configs.py'",
 )
 parser.add_argument(
     "--experiment_name",
@@ -21,7 +21,7 @@ parser.add_argument(
     help="name of experiment for entry in 'configs.py'",
 )
 parser.add_argument(
-    "--seed", type=int, default=0, help="seed for entry in 'configs.py'"
+    "--seed", type=int, default=0, help="seed for training run"
 )
 parser.add_argument("--device", type=str, default="cuda:0", help="gpu index")
 args = parser.parse_args()

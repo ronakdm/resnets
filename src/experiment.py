@@ -21,6 +21,7 @@ from src.image_models import MyrtleNet, ResNet, ConvNet
 from src.text_models import Transformer
 from src.image_data import get_image_dataloaders
 from src.text_data import get_text_dataloaders
+from src.contrastive_data import get_contrastive_dataloaders
 from src.variance_reduction import compute_loss, compute_gradients
 
 
@@ -102,22 +103,10 @@ class ExperimentHelper:
     def _format_time(self, elapsed):
         elapsed_rounded = int(round((elapsed)))
         return str(datetime.timedelta(seconds=elapsed_rounded))
-    
-    # def _setup_variance_reduction(self):
-    #     if "variance_reduction" in self.cfg:
-    #         vr = self.cfg["variance_reduction"]
-    #         if vr['type'] == 'raking':
-    #             root = f"/mnt/ssd/ronak/datasets/{self.dataset}"
-    #             return vr
-    #     else:
-    #         return None
 
     def _configure_ddp(self, device):
         ddp = int(os.environ.get("RANK", -1)) != -1
         grad_accumulation_steps = self.cfg["training"]["grad_accumulation_steps"]
-        # assert (
-        #     grad_accumulation_steps == 1
-        # ), "Hand-coded optimizer currently does not support gradient accumulation!"
         if ddp:
             init_process_group(backend="nccl")
             local_rank = int(os.environ["LOCAL_RANK"])
@@ -159,6 +148,10 @@ class ExperimentHelper:
             )
         elif self.dataset in ["sst2"]:
             return get_text_dataloaders(
+                batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
+            )
+        elif self.dataset in ["imagenet_captions_50k"]:
+            return get_contrastive_dataloaders(
                 batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
         else:
@@ -300,52 +293,73 @@ class ExperimentHelper:
                     f"    step {iter_num:>5,} / {self.max_iters:>5,}.    elapsed: {elapsed}."
                 )
 
-    @torch.no_grad
+    @torch.no_grad()
     def _compute_metrics(self, iter_num, model, loaders):
-        # TODO: Make this work beyond image classification.
         out = {"iter_num": iter_num}
         model.eval()
         eval_iters = self.cfg['training']["eval_iters"]
         out = {}
         for split, loader in zip(["train", "validation"], loaders):
-            for metric in ["loss", "accuracy", "avg_precision", "min_precision", "avg_recall", "min_recall"]:
-                out[f"{split}_{metric}"] = 0.0
-            denom = min(eval_iters, len(loader))
-            it = 0
-            for idx, X, Y in loader:
-                if it >= eval_iters:
-                    break
-                Y = Y.to(self.device)
-                loss, logits = model(X.to(self.device), Y)
-
-                # accuracy
-                Y_pred = torch.argmax(logits, dim=1)
-                out[f"{split}_accuracy"] += (
-                    torch.sum((Y_pred == Y)) / len(Y)
-                ).item() / denom
-
-                # precision and recall
-                report = classification_report(Y.cpu(), Y_pred.cpu(), zero_division=0.0, output_dict=True)
-                labels = []
-                for key in list(report.keys()):
-                    if key not in ['accuracy', 'marco avg', 'weighted avg']:
-                        labels.append(key)
-                precision = np.array([report[label]['precision'] for label in labels])
-                recall = np.array([report[label]['recall'] for label in labels])
-                out[f"{split}_avg_precision"] += precision.mean() / denom
-                out[f"{split}_min_precision"] += precision.min() / denom
-                out[f"{split}_avg_recall"] += recall.mean() / denom
-                out[f"{split}_min_recall"] += recall.min() / denom
-
-                out[f"{split}_loss"] += loss.item() / denom
-                it += 1
+            # TODO: Add language modeling.
+            if self.dataset == "imagenet_captions_50k":
+                self._compute_contrastive_metrics(model, loader, out, split, eval_iters)
+            else:
+                self._compute_classification_metrics(model, loader, out, split, eval_iters)
         if self.cfg['training']['track_variance']:
             for split, loader in zip(["train", "validation"], loaders):
                 out[f"{split}_variance"] = self._compute_variance(model, loader)
         model.train()
         return out
     
-    @torch.no_grad
+    @torch.no_grad()
+    def _compute_classification_metrics(self, model, loader, out, split, eval_iters):
+        for metric in ["loss", "accuracy", "avg_precision", "min_precision", "avg_recall", "min_recall"]:
+            out[f"{split}_{metric}"] = 0.0
+        denom = min(eval_iters, len(loader))
+        it = 0
+        for idx, X, Y in loader:
+            if it >= eval_iters:
+                break
+            Y = Y.to(self.device)
+            loss, logits = model(X.to(self.device), Y)
+
+            # accuracy
+            Y_pred = torch.argmax(logits, dim=1)
+            out[f"{split}_accuracy"] += (
+                torch.sum((Y_pred == Y)) / len(Y)
+            ).item() / denom
+
+            # precision and recall
+            report = classification_report(Y.cpu(), Y_pred.cpu(), zero_division=0.0, output_dict=True)
+            labels = []
+            for key in list(report.keys()):
+                if key not in ['accuracy', 'marco avg', 'weighted avg']:
+                    labels.append(key)
+            precision = np.array([report[label]['precision'] for label in labels])
+            recall = np.array([report[label]['recall'] for label in labels])
+            out[f"{split}_avg_precision"] += precision.mean() / denom
+            out[f"{split}_min_precision"] += precision.min() / denom
+            out[f"{split}_avg_recall"] += recall.mean() / denom
+            out[f"{split}_min_recall"] += recall.min() / denom
+
+            out[f"{split}_loss"] += loss.item() / denom
+            it += 1
+
+    @torch.no_grad()
+    def _compute_contrastive_metrics(self, model, loader, out, split, eval_iters):
+        for metric in ["loss"]:
+            out[f"{split}_{metric}"] = 0.0
+        denom = min(eval_iters, len(loader))
+        it = 0
+        for idx, X, Y in loader:
+            if it >= eval_iters:
+                break
+            loss, logits = model(X.to(self.device), Y.to(self.device))
+
+            out[f"{split}_loss"] += loss.item() / denom
+            it += 1
+    
+    @torch.no_grad()
     def _compute_variance(self, model, loader, max_iters=500):
         device = self.device
         vr = self.variance_reduction
