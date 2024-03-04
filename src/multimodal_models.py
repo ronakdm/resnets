@@ -21,11 +21,16 @@ class MLP(nn.Module):
         return self.out(x)
     
 class MiniCLIP(nn.Module):
-    def __init__(self, in_features, hidden_size, out_features, n_layers):
+    def __init__(self, in_features, hidden_size, out_features, n_layers, architecture="miniclip"):
+        if architecture != "miniclip":
+            raise ValueError(
+                f"Incorrect architecture specification '{architecture}' for model MiniCLIP!"
+            )
         super(MiniCLIP, self).__init__()
         self.image_encoder = MLP(in_features, hidden_size, out_features, n_layers)
         self.text_encoder  = MLP(in_features, hidden_size, out_features, n_layers)
-        self.logit_scale = torch.nn.Parameter(0.1 * torch.randn(1))
+        # self.logit_scale = torch.nn.Parameter(0.1 * torch.randn(1)) # learnable parameter
+        self.scale = 100.
 
     def forward(self, x, y, sample_weight=None):
 
@@ -38,10 +43,10 @@ class MiniCLIP(nn.Module):
         T_e = F.normalize(T_f)
 
         # scaled pairwise cosine similarities [n, n]
-        logits = torch.matmul(I_e, T_e.T) * self.logit_scale.exp()
+        logits = torch.matmul(I_e, T_e.T) * self.scale
 
         # symmetric loss function
-        labels = torch.arange(len(logits))
+        labels = torch.arange(len(logits)).to(x.get_device())
         loss_i = F.cross_entropy(logits, labels)
         loss_t = F.cross_entropy(logits.T, labels)
         loss = (loss_i + loss_t) / 2

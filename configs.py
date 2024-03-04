@@ -331,7 +331,31 @@ configs = {
     },
     "sst2": {},
     "imagenet_captions_50k": {
-        "default": {},
+        "debug": {
+            "model": {
+                "architecture": "miniclip",
+                "in_features": 512,
+                "hidden_size": 64,
+                "out_features": 32,
+                "n_layers": 2,
+            },
+            "training": {
+                "log_dir": "logs/",
+                "output_dir": "/mnt/ssd/ronak/output",
+                "init_from": "scratch",
+                "max_iters": 300,
+                "eval_interval": 100,
+                "eval_iters": 100,
+                "batch_size": 512,
+                "grad_accumulation_steps": 1,
+                "track_variance": False,
+            }
+        },
+        "default": {
+            # "training": {
+            #     "track_variance": False,
+            # }
+        },
     },
 }
 

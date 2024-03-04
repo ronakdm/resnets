@@ -11,7 +11,6 @@ import json
 import math
 from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.optim import SGD, Adam
 
 from sklearn.metrics import classification_report
 
@@ -19,9 +18,10 @@ from configs import configs
 from defaults import defaults
 from src.image_models import MyrtleNet, ResNet, ConvNet
 from src.text_models import Transformer
+from src.multimodal_models import MiniCLIP
 from src.image_data import get_image_dataloaders
 from src.text_data import get_text_dataloaders
-from src.contrastive_data import get_contrastive_dataloaders
+from src.multimodal_data import get_multimodal_dataloaders
 from src.variance_reduction import compute_loss, compute_gradients
 
 
@@ -52,7 +52,7 @@ class ExperimentHelper:
 
         # TODO: This would be a section to change for other formats
         self.variance_reduction = self.cfg['variance_reduction'] if 'variance_reduction' in self.cfg else {}
-        self.variance_reduction['resample'] = self.cfg['training']['resample']
+        # self.variance_reduction['resample'] = self.cfg['training']['resample']
 
         (
             self.device,
@@ -151,7 +151,7 @@ class ExperimentHelper:
                 batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
         elif self.dataset in ["imagenet_captions_50k"]:
-            return get_contrastive_dataloaders(
+            return get_multimodal_dataloaders(
                 batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
         else:
@@ -171,6 +171,8 @@ class ExperimentHelper:
             model = ConvNet(**model_cfg).float()
         elif arch == "transformer":
             model = Transformer(**model_cfg).float()
+        elif arch == "miniclip":
+            model = MiniCLIP(**model_cfg).float()
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 
