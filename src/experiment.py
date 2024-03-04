@@ -18,7 +18,7 @@ from configs import configs
 from defaults import defaults
 from src.image_models import MyrtleNet, ResNet, ConvNet
 from src.text_models import Transformer
-from src.multimodal_models import MiniCLIP
+from src.multimodal_models import MiniCLIP, JointlyCenteredCLIP, DoublyCenteredCLIP
 from src.image_data import get_image_dataloaders
 from src.text_data import get_text_dataloaders
 from src.multimodal_data import get_multimodal_dataloaders
@@ -173,6 +173,10 @@ class ExperimentHelper:
             model = Transformer(**model_cfg).float()
         elif arch == "miniclip":
             model = MiniCLIP(**model_cfg).float()
+        elif arch == "jointclip":
+            model = JointlyCenteredCLIP(**model_cfg).float()
+        elif arch == "doubleclip":
+            model = DoublyCenteredCLIP(**model_cfg).float()
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 
@@ -368,7 +372,7 @@ class ExperimentHelper:
         # estimate full batch gradient
         means = [torch.zeros(param.shape).to(device) for param in model.parameters()]
         it = 0
-        while it < max_iters:
+        while it < min(len(loader), max_iters):
             for idx, X, Y in loader:
                 if it >= max_iters:
                     break
@@ -379,14 +383,14 @@ class ExperimentHelper:
                     loss = compute_loss(model, idx, X.to(device), Y.to(device), vr={})
                     gradients = compute_gradients(list(model.parameters()), loss, vr={})
                 for mean, grad in zip(means, gradients):
-                    mean += grad / max_iters
+                    mean += grad / min(len(loader), max_iters)
                 model.zero_grad()
                 it += 1
         
         # estimate variance of stochastic gradients
         variance = 0
         it = 0
-        while it < max_iters:
+        while it < min(len(loader), max_iters):
             for idx, X, Y in loader:
                 if it >= max_iters:
                     break
@@ -396,7 +400,7 @@ class ExperimentHelper:
                     loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
                     gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
                 for mean, grad in zip(means, gradients):
-                    variance += torch.norm(grad - mean) ** 2 / max_iters
+                    variance += torch.norm(grad - mean) ** 2 / min(len(loader), max_iters)
                 it += 1
 
         return variance.item()

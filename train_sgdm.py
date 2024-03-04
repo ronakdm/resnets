@@ -28,7 +28,7 @@ args = parser.parse_args()
 dataset, experiment_name, seed, device = args.dataset, args.experiment_name, args.seed, args.device
 
 # Option B: Use with debugger.
-# dataset, experiment_name, seed, device = "imagenet_captions_50k", "debug", 0, "cuda:0"
+# dataset, experiment_name, seed, device = "imagenet_captions_50k", "doubly_centered", 0, "cuda:0"
 
 # Build model.
 helper = ExperimentHelper(dataset, experiment_name, seed, device)

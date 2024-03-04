@@ -1,0 +1,6 @@
+{
+    "train_loss": 2.6568990819594434,
+    "validation_loss": 2.940244507789612,
+    "train_variance": 16.787525177001953,
+    "validation_variance": 25.069358825683594
+}

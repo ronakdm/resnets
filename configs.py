@@ -356,6 +356,30 @@ configs = {
             #     "track_variance": False,
             # }
         },
+        "jointly_centered": {
+            "model": {
+                "architecture": "jointclip",
+                "in_features": 512,
+                "hidden_size": 256,
+                "out_features": 128,
+                "n_layers": 2,
+            },
+            # "training": {
+            #     "track_variance": False,
+            # }
+        },
+        "doubly_centered": {
+            "model": {
+                "architecture": "doubleclip",
+                "in_features": 512,
+                "hidden_size": 256,
+                "out_features": 128,
+                "n_layers": 2,
+            },
+            # "training": {
+            #     "track_variance": False,
+            # }
+        },
     },
 }
 
