@@ -365,14 +365,14 @@ class ExperimentHelper:
             it += 1
     
     @torch.no_grad()
-    def _compute_variance(self, model, loader, max_iters=500):
+    def _compute_variance(self, model, loader, max_iters=200):
         device = self.device
         vr = self.variance_reduction
 
         # estimate full batch gradient
         means = [torch.zeros(param.shape).to(device) for param in model.parameters()]
         it = 0
-        while it < min(len(loader), max_iters):
+        while it < max_iters:
             for idx, X, Y in loader:
                 if it >= max_iters:
                     break
@@ -383,14 +383,14 @@ class ExperimentHelper:
                     loss = compute_loss(model, idx, X.to(device), Y.to(device), vr={})
                     gradients = compute_gradients(list(model.parameters()), loss, vr={})
                 for mean, grad in zip(means, gradients):
-                    mean += grad / min(len(loader), max_iters)
+                    mean += grad / max_iters
                 model.zero_grad()
                 it += 1
         
         # estimate variance of stochastic gradients
         variance = 0
         it = 0
-        while it < min(len(loader), max_iters):
+        while it < max_iters:
             for idx, X, Y in loader:
                 if it >= max_iters:
                     break
@@ -400,7 +400,7 @@ class ExperimentHelper:
                     loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
                     gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
                 for mean, grad in zip(means, gradients):
-                    variance += torch.norm(grad - mean) ** 2 / min(len(loader), max_iters)
+                    variance += torch.norm(grad - mean) ** 2 / max_iters
                 it += 1
 
         return variance.item()
