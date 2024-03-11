@@ -16,13 +16,13 @@
         "n_layers_img": 2,
         "in_features_txt": 50,
         "hidden_size_txt": 64,
-        "n_layers_txt": 1,
+        "n_layers_txt": 2,
         "out_features": 32,
         "loss": "clip"
     },
     "optim": {
         "algo": "sgd",
-        "lr": 0.001,
+        "lr": 0.03,
         "momentum": 0.0,
         "weight_decay": 0.0,
         "cosine_decay": false
