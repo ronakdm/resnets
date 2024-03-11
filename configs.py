@@ -380,6 +380,30 @@ configs = {
             #     "track_variance": False,
             # }
         },
+        "clip_glove": {
+            "model": {
+                "architecture": "miniclip",
+                "in_features_img": 512,
+                "hidden_size_img": 64,
+                "n_layers_img": 2,
+                "in_features_txt": 50,
+                "hidden_size_txt": 64,
+                "n_layers_txt": 1,
+                "out_features": 32,
+                "loss": "clip",
+            },
+            "data": {
+                "img_embed": "vit_b32_laion2b",
+                "txt_embed": "glove",
+            },
+            "optim": {
+                "algo": "sgd",
+                "lr": 1e-3,
+            },
+            "training": {
+                "track_variance": False,
+            }
+        },
     },
 }
 

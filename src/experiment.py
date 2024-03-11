@@ -18,7 +18,7 @@ from configs import configs
 from defaults import defaults
 from src.image_models import MyrtleNet, ResNet, ConvNet
 from src.text_models import Transformer
-from src.multimodal_models import MiniCLIP, JointlyCenteredCLIP, DoublyCenteredCLIP
+from src.multimodal_models import MiniCLIP
 from src.image_data import get_image_dataloaders
 from src.text_data import get_text_dataloaders
 from src.multimodal_data import get_multimodal_dataloaders
@@ -49,6 +49,7 @@ class ExperimentHelper:
         self.dataset = dataset
         self.max_iters = self.cfg["training"]["max_iters"]
         self.optim = self.cfg["optim"]
+        self.val_class_embeds = None
 
         # TODO: This would be a section to change for other formats
         self.variance_reduction = self.cfg['variance_reduction'] if 'variance_reduction' in self.cfg else {}
@@ -153,7 +154,7 @@ class ExperimentHelper:
         elif self.dataset in ["imagenet_captions_50k"]:
             img_embed = self.cfg["data"]["img_embed"]
             txt_embed = self.cfg["data"]["txt_embed"]
-            return get_multimodal_dataloaders(
+            train_dataloader, test_dataloader, quantization, val_class_embeds = get_multimodal_dataloaders(
                 batch_size, 
                 rank, 
                 img_embed,
@@ -161,6 +162,8 @@ class ExperimentHelper:
                 root=root, 
                 quantization=self.variance_reduction['quantization']
             )
+            self.val_class_embeds = torch.from_numpy(val_class_embeds)
+            return train_dataloader, test_dataloader, quantization
         else:
             raise NotImplementedError(
                 f"No dataset found in at path '{root}'!"
@@ -180,10 +183,10 @@ class ExperimentHelper:
             model = Transformer(**model_cfg).float()
         elif arch == "miniclip":
             model = MiniCLIP(**model_cfg).float()
-        elif arch == "jointclip":
-            model = JointlyCenteredCLIP(**model_cfg).float()
-        elif arch == "doubleclip":
-            model = DoublyCenteredCLIP(**model_cfg).float()
+        # elif arch == "jointclip":
+        #     model = JointlyCenteredCLIP(**model_cfg).float()
+        # elif arch == "doubleclip":
+        #     model = DoublyCenteredCLIP(**model_cfg).float()
         else:
             raise NotImplementedError(f"Unrecognized model architecture '{arch}'!")
 
@@ -360,12 +363,12 @@ class ExperimentHelper:
 
     @torch.no_grad()
     def _compute_contrastive_metrics(self, model, loader, out, split, eval_iters):
-        for metric in ["loss"]:
+        for metric in ["loss", "zero_shot_top_1", "zero_shot_top_2"]:
             out[f"{split}_{metric}"] = 0.0
         denom = min(eval_iters, len(loader))
         it = 0
-        if loader.is_zero_shot:
-            class_embeds = loader.class_embeds.to(self.device)
+        if split == "validation" and not (self.val_class_embeds is None):
+            class_embeds = self.val_class_embeds.to(self.device)
             class_encodings_T = torch.nn.functional.normalize(model.text_encoder(class_embeds)).T
             for idx, X, Y, Z in loader:
                 if it >= eval_iters:
@@ -375,9 +378,11 @@ class ExperimentHelper:
                 loss, logits = model(X.to(self.device), Y.to(self.device))
                 out[f"{split}_loss"] += loss.item() / denom
 
+                # compute zero-shot accuracy
                 img_encodings = torch.nn.functional.normalize(model.image_encoder(X.to(self.device)))
-                class_scores = torch.matmul(img_encodings, class_encodings_T)
-                out[f"{split}_zero_shot_top_5"] += top_k_accuracy_score(Z, class_scores, k=5) / denom
+                class_scores = torch.matmul(img_encodings, class_encodings_T).cpu()
+                out[f"{split}_zero_shot_top_1"] += top_k_accuracy_score(Z, class_scores, k=1) / denom
+                out[f"{split}_zero_shot_top_2"] += top_k_accuracy_score(Z, class_scores, k=2) / denom
 
                 it += 1
         else:

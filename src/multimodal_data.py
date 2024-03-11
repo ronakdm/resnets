@@ -5,15 +5,15 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 
 class MultimodalEmbeddingDataset(Dataset):
-    def __init__(self, x, y, class_id=None, class_embed=None):
+    def __init__(self, x, y, class_id=None, class_embeds=None):
         self.x = x
         self.y = y
         self.n = len(self.x)
-        self.zero_shot = not (class_id is None or class_embed is None)
+        self.zero_shot = not (class_id is None or class_embeds is None)
 
         if self.zero_shot:
             self.z = class_id
-            self.class_embed = class_embed
+            self.class_embeds = class_embeds
 
     def __len__(self):
         return self.n
@@ -56,6 +56,7 @@ def get_multimodal_dataloaders(
         image_features = np.load(os.path.join(root, f"{img_embed}_image_features.npy"))
         text_features  = np.load(os.path.join(root, f"{txt_embed}_text_features.npy"))
         x_train, x_test, y_train, y_test = train_test_split(image_features, text_features, test_size=0.1, random_state=42)
+        val_class_embeds = None
         test_dataset = MultimodalEmbeddingDataset(x_test, y_test)
 
     train_dataset = MultimodalEmbeddingDataset(x_train, y_train)
@@ -67,7 +68,7 @@ def get_multimodal_dataloaders(
         test_dataset, shuffle=True, batch_size=batch_size
     )
     print(f"{len(test_dataset):>5,} validation samples on rank {rank}.")
-    return train_dataloader, test_dataloader, quantization
+    return train_dataloader, test_dataloader, quantization, val_class_embeds
 
 # def get_multimodal_dataloaders(
 #     batch_size, 
