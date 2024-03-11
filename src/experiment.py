@@ -151,8 +151,15 @@ class ExperimentHelper:
                 batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
             )
         elif self.dataset in ["imagenet_captions_50k"]:
+            img_embed = self.cfg["data"]["img_embed"]
+            txt_embed = self.cfg["data"]["txt_embed"]
             return get_multimodal_dataloaders(
-                batch_size, rank, root=root, unbalance=unbalance, quantization=self.variance_reduction['quantization']
+                batch_size, 
+                rank, 
+                img_embed,
+                txt_embed,
+                root=root, 
+                quantization=self.variance_reduction['quantization']
             )
         else:
             raise NotImplementedError(
