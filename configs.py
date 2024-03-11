@@ -458,6 +458,84 @@ configs = {
                 "track_variance": False,
             }
         },
+        "clip_glove_convnext": {
+            "model": {
+                "architecture": "miniclip",
+                "in_features_img": 1024,
+                "hidden_size_img": 64,
+                "n_layers_img": 2,
+                "in_features_txt": 50,
+                "hidden_size_txt": 64,
+                "n_layers_txt": 2,
+                "out_features": 32,
+                "loss": "clip",
+            },
+            "data": {
+                "img_embed": "convnext_base",
+                "txt_embed": "glove",
+            },
+            "optim": {
+                "algo": "sgd",
+                "lr": 1e-3,
+                "momentum": 0.0,
+                "weight_decay": 0.0,
+            },
+            "training": {
+                "track_variance": False,
+            }
+        },
+        "joint_glove_convnext": {
+            "model": {
+                "architecture": "miniclip",
+                "in_features_img": 1024,
+                "hidden_size_img": 64,
+                "n_layers_img": 2,
+                "in_features_txt": 50,
+                "hidden_size_txt": 64,
+                "n_layers_txt": 2,
+                "out_features": 32,
+                "loss": "jointly_centered",
+            },
+            "data": {
+                "img_embed": "convnext_base",
+                "txt_embed": "glove",
+            },
+            "optim": {
+                "algo": "sgd",
+                "lr": 3e-4,
+                "momentum": 0.0,
+                "weight_decay": 0.0,
+            },
+            "training": {
+                "track_variance": False,
+            }
+        },
+        "double_glove_convnext": {
+            "model": {
+                "architecture": "miniclip",
+                "in_features_img": 1024,
+                "hidden_size_img": 64,
+                "n_layers_img": 2,
+                "in_features_txt": 50,
+                "hidden_size_txt": 64,
+                "n_layers_txt": 2,
+                "out_features": 32,
+                "loss": "doubly_centered",
+            },
+            "data": {
+                "img_embed": "convnext_base",
+                "txt_embed": "glove",
+            },
+            "optim": {
+                "algo": "sgd",
+                "lr": 1e-3,
+                "momentum": 0.0,
+                "weight_decay": 0.0,
+            },
+            "training": {
+                "track_variance": False,
+            }
+        },
     },
 }
 
