@@ -323,7 +323,7 @@ class ExperimentHelper:
                 self._compute_classification_metrics(model, loader, out, split, eval_iters)
         if self.cfg['training']['track_variance']:
             for split, loader in zip(["train", "validation"], loaders):
-                out[f"{split}_variance"] = self._compute_variance(model, loader)
+                out[f"{split}_variance"] = self._compute_variance(model, loader, split)
         model.train()
         return out
     
@@ -394,7 +394,7 @@ class ExperimentHelper:
                 it += 1
     
     @torch.no_grad()
-    def _compute_variance(self, model, loader, max_iters=200):
+    def _compute_variance(self, model, loader, split, max_iters=200):
         device = self.device
         vr = self.variance_reduction
 
@@ -402,35 +402,63 @@ class ExperimentHelper:
         means = [torch.zeros(param.shape).to(device) for param in model.parameters()]
         it = 0
         while it < max_iters:
-            for idx, X, Y in loader:
-                if it >= max_iters:
-                    break
-                Y = Y.to(self.device)
-                with torch.enable_grad():
+            if split == "validation" and not (self.val_class_embeds is None):
+                for idx, X, Y, Z in loader:
+                    if it >= max_iters:
+                        break
+                    Y = Y.to(self.device)
+                    with torch.enable_grad():
+                        model.zero_grad()
+                        # no variance reduction, as we will take enough batches to compute the full quantity
+                        loss = compute_loss(model, idx, X.to(device), Y.to(device), vr={})
+                        gradients = compute_gradients(list(model.parameters()), loss, vr={})
+                    for mean, grad in zip(means, gradients):
+                        mean += grad / max_iters
                     model.zero_grad()
-                    # no variance reduction, as we will take enough batches to compute the full quantity
-                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr={})
-                    gradients = compute_gradients(list(model.parameters()), loss, vr={})
-                for mean, grad in zip(means, gradients):
-                    mean += grad / max_iters
-                model.zero_grad()
-                it += 1
+                    it += 1
+            else:
+                for idx, X, Y in loader:
+                    if it >= max_iters:
+                        break
+                    Y = Y.to(self.device)
+                    with torch.enable_grad():
+                        model.zero_grad()
+                        # no variance reduction, as we will take enough batches to compute the full quantity
+                        loss = compute_loss(model, idx, X.to(device), Y.to(device), vr={})
+                        gradients = compute_gradients(list(model.parameters()), loss, vr={})
+                    for mean, grad in zip(means, gradients):
+                        mean += grad / max_iters
+                    model.zero_grad()
+                    it += 1
         
         # estimate variance of stochastic gradients
         variance = 0
         it = 0
         while it < max_iters:
-            for idx, X, Y in loader:
-                if it >= max_iters:
-                    break
-                Y = Y.to(self.device)
-                with torch.enable_grad():
-                    model.zero_grad()
-                    loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
-                    gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
-                for mean, grad in zip(means, gradients):
-                    variance += torch.norm(grad - mean) ** 2 / max_iters
-                it += 1
+            if split == "validation" and not (self.val_class_embeds is None):
+                for idx, X, Y, Z in loader:
+                    if it >= max_iters:
+                        break
+                    Y = Y.to(self.device)
+                    with torch.enable_grad():
+                        model.zero_grad()
+                        loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
+                        gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
+                    for mean, grad in zip(means, gradients):
+                        variance += torch.norm(grad - mean) ** 2 / max_iters
+                    it += 1
+            else:
+                for idx, X, Y in loader:
+                    if it >= max_iters:
+                        break
+                    Y = Y.to(self.device)
+                    with torch.enable_grad():
+                        model.zero_grad()
+                        loss = compute_loss(model, idx, X.to(device), Y.to(device), vr=vr)
+                        gradients = compute_gradients(list(model.parameters()), loss, vr=vr)
+                    for mean, grad in zip(means, gradients):
+                        variance += torch.norm(grad - mean) ** 2 / max_iters
+                    it += 1
 
         return variance.item()
     

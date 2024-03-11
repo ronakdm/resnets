@@ -1,0 +1,10 @@
+{
+    "train_loss": 9.354898997715543,
+    "train_zero_shot_top_1": 0.0,
+    "train_zero_shot_top_2": 0.0,
+    "validation_loss": 15.300199161876332,
+    "validation_zero_shot_top_1": 0.28219292972385973,
+    "validation_zero_shot_top_2": 0.4961682875038784,
+    "train_variance": 1.7451077699661255,
+    "validation_variance": 15.047043800354004
+}

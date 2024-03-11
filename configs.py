@@ -400,11 +400,11 @@ configs = {
                 "algo": "sgd",
                 "lr": 3e-2,
                 "momentum": 0.0,
-                "weight_decay": 0.0,
+                "weight_decay": 0.001,
             },
-            "training": {
-                "track_variance": False,
-            }
+            # "training": {
+            #     "track_variance": False,
+            # }
         },
         "joint_glove": {
             "model": {
@@ -426,11 +426,11 @@ configs = {
                 "algo": "sgd",
                 "lr": 1e-2,
                 "momentum": 0.0,
-                "weight_decay": 0.0,
+                "weight_decay": 0.001,
             },
-            "training": {
-                "track_variance": False,
-            }
+            # "training": {
+            #     "track_variance": False,
+            # }
         },
         "double_glove": {
             "model": {
@@ -450,13 +450,13 @@ configs = {
             },
             "optim": {
                 "algo": "sgd",
-                "lr": 1e-2,
+                "lr": 3e-2,
                 "momentum": 0.0,
-                "weight_decay": 0.0,
+                "weight_decay": 0.001,
             },
-            "training": {
-                "track_variance": False,
-            }
+            # "training": {
+            #     "track_variance": False,
+            # }
         },
         "clip_glove_convnext": {
             "model": {
@@ -478,11 +478,11 @@ configs = {
                 "algo": "sgd",
                 "lr": 1e-3,
                 "momentum": 0.0,
-                "weight_decay": 0.0,
+                "weight_decay": 0.01,
             },
-            "training": {
-                "track_variance": False,
-            }
+            # "training": {
+            #     "track_variance": False,
+            # }
         },
         "joint_glove_convnext": {
             "model": {
@@ -502,13 +502,13 @@ configs = {
             },
             "optim": {
                 "algo": "sgd",
-                "lr": 3e-4,
+                "lr": 1e-4,
                 "momentum": 0.0,
-                "weight_decay": 0.0,
+                "weight_decay": 0.01,
             },
-            "training": {
-                "track_variance": False,
-            }
+            # "training": {
+            #     "track_variance": False,
+            # }
         },
         "double_glove_convnext": {
             "model": {
@@ -530,11 +530,11 @@ configs = {
                 "algo": "sgd",
                 "lr": 1e-3,
                 "momentum": 0.0,
-                "weight_decay": 0.0,
+                "weight_decay": 0.01,
             },
-            "training": {
-                "track_variance": False,
-            }
+            # "training": {
+            #     "track_variance": False,
+            # }
         },
     },
 }
