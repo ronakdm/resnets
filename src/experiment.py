@@ -12,7 +12,7 @@ import math
 from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, top_k_accuracy_score
 
 from configs import configs
 from defaults import defaults
@@ -364,12 +364,29 @@ class ExperimentHelper:
             out[f"{split}_{metric}"] = 0.0
         denom = min(eval_iters, len(loader))
         it = 0
-        for idx, X, Y in loader:
-            if it >= eval_iters:
-                break
-            loss, logits = model(X.to(self.device), Y.to(self.device))
-            out[f"{split}_loss"] += loss.item() / denom
-            it += 1
+        if loader.is_zero_shot:
+            class_embeds = loader.class_embeds.to(self.device)
+            class_encodings_T = torch.nn.functional.normalize(model.text_encoder(class_embeds)).T
+            for idx, X, Y, Z in loader:
+                if it >= eval_iters:
+                    break
+
+                # compute standard loss
+                loss, logits = model(X.to(self.device), Y.to(self.device))
+                out[f"{split}_loss"] += loss.item() / denom
+
+                img_encodings = torch.nn.functional.normalize(model.image_encoder(X.to(self.device)))
+                class_scores = torch.matmul(img_encodings, class_encodings_T)
+                out[f"{split}_zero_shot_top_5"] += top_k_accuracy_score(Z, class_scores, k=5) / denom
+
+                it += 1
+        else:
+            for idx, X, Y in loader:
+                if it >= eval_iters:
+                    break
+                loss, logits = model(X.to(self.device), Y.to(self.device))
+                out[f"{split}_loss"] += loss.item() / denom
+                it += 1
     
     @torch.no_grad()
     def _compute_variance(self, model, loader, max_iters=200):
